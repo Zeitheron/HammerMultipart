@@ -10,12 +10,14 @@ import net.minecraftforge.fml.loading.*;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.client.IClientPartDefinitionExtensions;
 
+import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.function.*;
 
 public abstract class PartDefinition
 {
 	public float destroySpeed = 1F;
+	protected boolean survivesInWater = true;
 	protected SoundType soundType = SoundType.STONE;
 	protected final PartDefinitionModel model = createModel();
 	protected int tintIndexCount = 0;
@@ -32,9 +34,9 @@ public abstract class PartDefinition
 		return soundType;
 	}
 	
-	public boolean canSurviveInWater(PartEntity part)
+	public boolean canSurviveInWater(@Nullable PartEntity part)
 	{
-		return true;
+		return survivesInWater;
 	}
 	
 	protected PartDefinitionModel createModel()
@@ -62,7 +64,7 @@ public abstract class PartDefinition
 		return Optional.empty();
 	}
 	
-	public boolean canPlaceAt(PartContainer container, PartPlacement placement)
+	public boolean canPlaceAt(PartContainer container, @Nullable IConfiguredPartPlacer placer, PartPlacement placement)
 	{
 		return true;
 	}

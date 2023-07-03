@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.util.java.tuples.*;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.PartPlacement;
+import org.zeith.multipart.init.PartPlacementsHM;
 
 import java.util.*;
 import java.util.function.Function;
@@ -61,7 +62,7 @@ public class PartEntityLadder
 	{
 		Direction towards = placement.getDirection();
 		if(towards == null) return;
-		if(PartRegistries.SIDED_PLACEMENT.apply(towards) != placement) return;
+		if(PartPlacementsHM.SIDED_PLACEMENT.apply(towards) != placement) return;
 		BlockPos pos = container.pos().relative(towards);
 		BlockState blockstate = container.level().getBlockState(pos);
 		if(!blockstate.isFaceSturdy(container.level(), pos, towards.getOpposite()))
@@ -83,7 +84,8 @@ public class PartEntityLadder
 	@Override
 	public boolean isLadder(LivingEntity entity)
 	{
-		return true;
+		return entity == null ||
+				getCollisionShape().bounds().move(container.pos()).inflate(0.15).intersects(entity.getBoundingBox());
 	}
 	
 	@Override

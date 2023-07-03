@@ -130,12 +130,15 @@ public class BlockMultipartContainer
 		if(part.isEmpty()) return 10F;
 		var e = part.orElseThrow();
 		
+		var rs = e.getValue().getHardnessState();
+		if(rs != null)
+			state = rs;
+		
 		float f = e.getValue().getDestroySpeed(player);
 		if(f == -1.0F) return 0.0F;
 		else
 		{
 			if(f == 0.0F) return 1.0F;
-			
 			int i = e.getValue().isCorrectToolForDrops(player) ? 30 : 100;
 			return player.getDigSpeed(state, pos) / f / (float) i;
 		}
@@ -475,6 +478,11 @@ public class BlockMultipartContainer
 		{
 			var feature = it.getPlacement(level, hit.getBlockPos(), player, held, hit).orElse(null);
 			if(feature == null) return Optional.empty();
+			
+			var hasWater = WorldPartComponents.BLOCK.defaultBlockState(level, placePos)
+					.getValue(BlockMultipartContainer.WATERLOGGED);
+			if(hasWater && !feature.base().canSurviveInWater(null))
+				return Optional.empty();
 			
 			if(air) // perform empty placement
 			{

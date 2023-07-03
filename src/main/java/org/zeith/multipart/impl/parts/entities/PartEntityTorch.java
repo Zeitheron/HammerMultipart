@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.util.java.tuples.*;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.PartPlacement;
+import org.zeith.multipart.init.PartPlacementsHM;
 
 import java.util.*;
 import java.util.function.Function;
@@ -47,7 +48,7 @@ public class PartEntityTorch
 	@Override
 	protected VoxelShape updateShape()
 	{
-		if(placement == PartRegistries.DOWN)
+		if(placement == PartPlacementsHM.DOWN)
 		{
 			return AABB;
 		} else
@@ -71,7 +72,7 @@ public class PartEntityTorch
 		
 		var level = container.level();
 		var pos = container.pos();
-		if(placement == PartRegistries.DOWN)
+		if(placement == PartPlacementsHM.DOWN)
 		{
 			double d0 = (double) pos.getX() + 0.5D;
 			double d1 = (double) pos.getY() + 0.7D;
@@ -103,19 +104,13 @@ public class PartEntityTorch
 	{
 		Direction towards = placement.getDirection();
 		if(towards == null) return;
-		if(PartRegistries.SIDED_PLACEMENT.apply(towards) != placement) return;
+		if(PartPlacementsHM.SIDED_PLACEMENT.apply(towards) != placement) return;
 		BlockPos pos = container.pos().relative(towards);
 		if(waterlogged ||
 				!container.level().getBlockState(pos).isFaceSturdy(container.level(), pos, towards.getOpposite()))
 		{
 			container.queuePartRemoval(placement, true, true, true);
 		}
-	}
-	
-	@Override
-	public boolean canSurviveInWater()
-	{
-		return false;
 	}
 	
 	@Override

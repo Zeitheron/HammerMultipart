@@ -294,6 +294,12 @@ public abstract class PartEntity
 		return null;
 	}
 	
+	@Nullable
+	public BlockState getHardnessState()
+	{
+		return getRenderState();
+	}
+	
 	public List<ResourceLocation> getRenderModels()
 	{
 		return List.of();
@@ -355,5 +361,10 @@ public abstract class PartEntity
 			case EAST -> Shapes.create(invElevation, minAxial, minAxial, 1, maxAxial, maxAxial);
 		};
 		return ourShape;
+	}
+	
+	public boolean blocksPlacementFor(PartDefinition definition, PartPlacement definitionPosition)
+	{
+		return false;
 	}
 }

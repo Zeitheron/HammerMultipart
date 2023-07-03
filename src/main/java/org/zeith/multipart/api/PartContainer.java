@@ -13,12 +13,10 @@ import net.minecraftforge.client.model.data.ModelProperty;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fml.DistExecutor;
-import org.apache.commons.compress.utils.Lists;
 import org.apache.logging.log4j.*;
 import org.jetbrains.annotations.*;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.client.IClientPartDefinitionExtensions;
-import org.zeith.multipart.client.rendering.IPartRenderer;
 import org.zeith.multipart.tile.BlockMultipartContainer;
 
 import javax.annotation.Nullable;
@@ -57,11 +55,18 @@ public class PartContainer
 		this.openUI = openUI;
 	}
 	
-	public boolean tryPlacePart(PartDefinition def, IConfiguredPartPlacer placer, PartPlacement placement)
+	public boolean tryPlacePart(@NotNull PartDefinition def, @Nullable IConfiguredPartPlacer placer, @NotNull PartPlacement placement)
 	{
 		if(!placement.canBePlacedAlongside(parts.keySet()))
 			return false; // Unable to place here due to other parts blocking it.
-		if(!def.canPlaceAt(this, placement)) return false; // Unable to place part due to internal checks - reject.
+		if(!def.canPlaceAt(this, placer, placement)) return false; // Unable to place part due to internal checks - reject.
+		
+		for(var entry : parts.entrySet())
+		{
+			if(!entry.getKey().isCompatibleWith(placement)) return false;
+			var part = entry.getValue();
+			if(part.blocksPlacementFor(def, placement)) return false;
+		}
 		
 		var existingPart = getPartAt(placement);
 		
@@ -144,7 +149,9 @@ public class PartContainer
 		
 		DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
 		{
-			renderers.put(placement, IClientPartDefinitionExtensions.of(part).createRenderer(part));
+			var renderer = IClientPartDefinitionExtensions.of(part).createRenderer(part);
+			if(renderer != null)
+				renderers.put(placement, renderer);
 		});
 		
 		if(shouldUpdate)

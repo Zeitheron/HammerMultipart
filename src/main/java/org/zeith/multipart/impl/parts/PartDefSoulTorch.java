@@ -8,25 +8,23 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import org.zeith.hammerlib.annotations.*;
+import org.jetbrains.annotations.Nullable;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.impl.parts.entities.PartEntitySoulTorch;
+import org.zeith.multipart.init.PartPlacementsHM;
 
-import java.util.*;
+import java.util.Optional;
 
-@SimplyRegister
 public class PartDefSoulTorch
 		extends PartDefinition
 {
-	@RegistryName("soul_torch")
-	public static final PartDefSoulTorch SOUL_TORCH_PART = new PartDefSoulTorch();
-	
 	public PartDefSoulTorch()
 	{
 		model.addParticleIcon(new ResourceLocation("block/soul_torch"));
 		soundType = SoundType.WOOD;
 		destroySpeed = 0.0001F;
+		survivesInWater = false;
 		cloneItem = Items.SOUL_TORCH::getDefaultInstance;
 	}
 	
@@ -34,7 +32,7 @@ public class PartDefSoulTorch
 	{
 		Direction towards = hit.getDirection().getOpposite();
 		if(level.getBlockState(pos).isFaceSturdy(level, pos, hit.getDirection()))
-			return Optional.of(new PlacedPartConfiguration(this, PartRegistries.SIDED_PLACEMENT.apply(towards)));
+			return Optional.of(new PlacedPartConfiguration(this, PartPlacementsHM.SIDED_PLACEMENT.apply(towards)));
 		return Optional.empty();
 	}
 	
@@ -42,20 +40,20 @@ public class PartDefSoulTorch
 	public Optional<PlacedPartConfiguration> convertBlockToPart(Level level, BlockPos pos, BlockState state)
 	{
 		if(state.is(Blocks.SOUL_TORCH))
-			return Optional.of(new PlacedPartConfiguration(this, PartRegistries.DOWN));
+			return Optional.of(new PlacedPartConfiguration(this, PartPlacementsHM.DOWN));
 		if(state.is(Blocks.SOUL_WALL_TORCH))
 			return Optional.of(new PlacedPartConfiguration(this,
-					PartRegistries.SIDED_PLACEMENT.apply(state.getValue(WallTorchBlock.FACING).getOpposite())
+					PartPlacementsHM.SIDED_PLACEMENT.apply(state.getValue(WallTorchBlock.FACING).getOpposite())
 			));
 		return Optional.empty();
 	}
 	
 	@Override
-	public boolean canPlaceAt(PartContainer container, PartPlacement placement)
+	public boolean canPlaceAt(PartContainer container, @Nullable IConfiguredPartPlacer placer, PartPlacement placement)
 	{
 		Direction towards = placement.getDirection();
 		if(towards == null || towards == Direction.UP) return false;
-		if(PartRegistries.SIDED_PLACEMENT.apply(towards) != placement) return false;
+		if(PartPlacementsHM.SIDED_PLACEMENT.apply(towards) != placement) return false;
 		if(container.waterlogged) return false;
 		BlockPos pos = container.pos().relative(towards);
 		BlockState blockstate = container.level().getBlockState(pos);

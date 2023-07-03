@@ -14,7 +14,7 @@ mod_description=Simple and powerful library to place multiple things in one bloc
 mod_authors=Zeitheron
 mod_license=All Rights Reserved
 mod_credits=None
-issue_tracker_url=https://github.com/Zeitheron/HammerMultipart/issues
+issue_tracker_url=https://github.com/dragon-forge/HammerMultipart/issues
 
 # Maven Info
 maven_group=org.zeith.multipart

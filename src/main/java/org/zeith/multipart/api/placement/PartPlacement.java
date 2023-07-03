@@ -17,6 +17,11 @@ public abstract class PartPlacement
 		return true;
 	}
 	
+	public boolean isCompatibleWith(PartPlacement other)
+	{
+		return true;
+	}
+	
 	@Nullable
 	public Direction getDirection()
 	{
