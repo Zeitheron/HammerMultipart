@@ -1,4 +1,4 @@
-package org.zeith.multipart.tile;
+package org.zeith.multipart.blocks;
 
 import net.minecraft.core.*;
 import net.minecraft.nbt.CompoundTag;
@@ -14,11 +14,10 @@ import net.minecraftforge.client.model.data.ModelData;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.*;
-import org.zeith.hammerlib.api.forge.ContainerAPI;
+import org.zeith.hammerlib.api.forge.*;
 import org.zeith.hammerlib.api.tiles.IContainerTile;
 import org.zeith.hammerlib.tiles.TileSyncableTickable;
 import org.zeith.multipart.api.*;
-import org.zeith.multipart.utils.BlockUpdateEmitter;
 
 import java.util.Objects;
 
@@ -112,7 +111,7 @@ public class TileMultipartContainer
 			{
 				prevHash = hash;
 				container.recalcTintLayers(hash);
-				BlockUpdateEmitter.blockUpdated(level, worldPosition);
+				BlockAPI.sendBlockUpdate(level, worldPosition);
 			}
 		}
 		
@@ -137,7 +136,7 @@ public class TileMultipartContainer
 								.setValue(BlockMultipartContainer.LIGHT_LEVEL, light)
 				);
 				level.updateNeighborsAt(worldPosition, st.getBlock());
-				BlockUpdateEmitter.blockUpdated(level, worldPosition);
+				BlockAPI.sendBlockUpdate(level, worldPosition);
 				updatePowerStrength();
 			}
 			container.causeBlockUpdate = false;

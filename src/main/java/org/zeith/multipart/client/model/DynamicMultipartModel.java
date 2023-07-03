@@ -18,6 +18,7 @@ import org.jetbrains.annotations.*;
 import org.zeith.hammerlib.client.model.*;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.client.*;
+import org.zeith.multipart.init.PartRegistries;
 
 import java.util.*;
 import java.util.function.*;

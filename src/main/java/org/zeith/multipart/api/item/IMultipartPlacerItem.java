@@ -1,4 +1,4 @@
-package org.zeith.multipart.item;
+package org.zeith.multipart.api.item;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;

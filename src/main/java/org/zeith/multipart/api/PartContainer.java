@@ -17,7 +17,8 @@ import org.apache.logging.log4j.*;
 import org.jetbrains.annotations.*;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.client.IClientPartDefinitionExtensions;
-import org.zeith.multipart.tile.BlockMultipartContainer;
+import org.zeith.multipart.blocks.BlockMultipartContainer;
+import org.zeith.multipart.init.PartRegistries;
 
 import javax.annotation.Nullable;
 import java.util.*;

@@ -8,7 +8,7 @@ import org.zeith.hammerlib.annotations.*;
 import org.zeith.hammerlib.annotations.client.TileRenderer;
 import org.zeith.hammerlib.api.forge.BlockAPI;
 import org.zeith.multipart.client.rendering.TESRMultipartContainer;
-import org.zeith.multipart.tile.*;
+import org.zeith.multipart.blocks.*;
 
 @SimplyRegister
 public class WorldPartComponents

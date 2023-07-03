@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.zeith.multipart.api.placement.PartPlacement;
-import org.zeith.multipart.tile.BlockMultipartContainer;
+import org.zeith.multipart.blocks.BlockMultipartContainer;
 
 import java.util.Objects;
 

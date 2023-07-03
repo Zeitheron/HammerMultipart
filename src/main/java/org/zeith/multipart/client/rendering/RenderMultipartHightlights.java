@@ -6,7 +6,7 @@ import net.minecraftforge.client.event.*;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.zeith.multipart.api.*;
-import org.zeith.multipart.tile.BlockMultipartContainer;
+import org.zeith.multipart.blocks.BlockMultipartContainer;
 
 @Mod.EventBusSubscriber(Dist.CLIENT)
 public class RenderMultipartHightlights

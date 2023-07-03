@@ -9,6 +9,7 @@ import net.minecraftforge.client.model.geometry.IGeometryBakingContext;
 import net.minecraftforge.fml.loading.*;
 import org.apache.logging.log4j.*;
 import org.zeith.multipart.client.model.*;
+import org.zeith.multipart.init.PartRegistries;
 
 import java.util.*;
 import java.util.function.*;

@@ -9,6 +9,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.loading.*;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.client.IClientPartDefinitionExtensions;
+import org.zeith.multipart.init.PartRegistries;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
@@ -16,6 +17,8 @@ import java.util.function.*;
 
 public abstract class PartDefinition
 {
+	private Boolean isRegistered;
+	
 	public float destroySpeed = 1F;
 	protected boolean survivesInWater = true;
 	protected SoundType soundType = SoundType.STONE;
@@ -105,5 +108,12 @@ public abstract class PartDefinition
 	
 	public void initializeClient(Consumer<IClientPartDefinitionExtensions> consumer)
 	{
+	}
+	
+	public boolean isRegistered()
+	{
+		if(isRegistered == null)
+			isRegistered = PartRegistries.partDefinitions().containsValue(this);
+		return isRegistered;
 	}
 }

@@ -1,4 +1,4 @@
-package org.zeith.multipart.tile;
+package org.zeith.multipart.blocks;
 
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.*;
@@ -24,11 +24,12 @@ import org.zeith.hammerlib.HammerLib;
 import org.zeith.hammerlib.api.blocks.INoItemBlock;
 import org.zeith.hammerlib.api.forge.BlockAPI;
 import org.zeith.hammerlib.net.Network;
+import org.zeith.hammerlib.net.packets.PacketRequestTileSync;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.client.MultipartEffects;
-import org.zeith.multipart.item.IMultipartPlacerItem;
+import org.zeith.multipart.api.item.IMultipartPlacerItem;
+import org.zeith.multipart.init.PartRegistries;
 import org.zeith.multipart.mixins.UseOnContextAccessor;
-import org.zeith.multipart.net.PacketRequestTileSync;
 
 import java.util.*;
 import java.util.function.Consumer;

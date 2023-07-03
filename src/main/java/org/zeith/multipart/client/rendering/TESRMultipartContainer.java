@@ -3,8 +3,7 @@ package org.zeith.multipart.client.rendering;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import org.zeith.hammerlib.client.render.tile.IBESR;
-import org.zeith.multipart.api.PartEntity;
-import org.zeith.multipart.tile.TileMultipartContainer;
+import org.zeith.multipart.blocks.TileMultipartContainer;
 
 import java.util.ConcurrentModificationException;
 
