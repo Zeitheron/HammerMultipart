@@ -1,5 +1,5 @@
 # Mod Info
-mod_version=20.0.1
+mod_version=20.1.2
 build_candidate=false
 
 # Mod dependencies (jei is not a requirement, but HammerLib is)
@@ -35,7 +35,7 @@ cf_project=884010
 modrinth_project=9g6WlH2N
 
 # alpha, beta, release
-release_type=alpha
+release_type=release
 
 # List of mods separated by ;
 # If a specific mod for one platform is needed, @m: or @c: prefixes are used.

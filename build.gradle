@@ -488,7 +488,7 @@ publishing {
             artifact srcJar
             artifact deobfJar
 
-            pom.withXml {
+            /*pom.withXml {
                 def dependenciesNode = asNode().appendNode('dependencies')
 
                 if (!config.hl_version.isEmpty()) {
@@ -497,7 +497,7 @@ publishing {
                     dependencyNode.appendNode('artifactId', "HammerLib-${config.mc_version}")
                     dependencyNode.appendNode('version', config.hl_version)
                 }
-            }
+            }*/
         }
     }
     repositories {
