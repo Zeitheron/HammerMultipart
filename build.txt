@@ -3,21 +3,21 @@ mod_version=20.0.1
 build_candidate=false
 
 # Mod dependencies (jei is not a requirement, but HammerLib is)
-hl_version=20.1.9
+hl_version=20.1.10
 jei_version=15.2.0.22
 
 # Persistent mod info
-mod_id=modid
-archive_name=ModId
-mod_name=Mod Name
-mod_description=Example mod description.\nNewline characters can be used and will be replaced properly.
+mod_id=hammermultipart
+archive_name=HammerMultipart
+mod_name=Hammer Multipart
+mod_description=Simple and powerful library to place multiple things in one block space.
 mod_authors=Zeitheron
 mod_license=All Rights Reserved
 mod_credits=None
-issue_tracker_url=https://github.com/dragon-forge/HammerLib/issues
+issue_tracker_url=https://github.com/Zeitheron/HammerMultipart/issues
 
 # Maven Info
-maven_group=org.zeith.modid
+maven_group=org.zeith.multipart
 maven_url=file:///SERVER//Maven
 
 # MC Info
@@ -31,8 +31,8 @@ mc_user=Zeitheron,63fa4c485b5640809727d5d59663e603
 java=17
 
 # Project ID on CurseForge
-cf_project=0
-modrinth_project=
+cf_project=884010
+modrinth_project=9g6WlH2N
 
 # alpha, beta, release
 release_type=alpha

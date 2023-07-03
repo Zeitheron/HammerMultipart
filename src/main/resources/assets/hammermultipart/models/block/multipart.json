@@ -1,0 +1,6 @@
+{
+  "loader": "hammermultipart:multipart",
+  "textures": {
+    "particle": "minecraft:block/stone"
+  }
+}
