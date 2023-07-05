@@ -84,7 +84,7 @@ public class PartContainer
 		
 		var shapeOfEntity = placeEntity.getPartOccupiedShape();
 		for(var entry : parts.entrySet())
-			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, entry.getValue().getPartOccupiedShape()))
+			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, entry.getValue().getPartOccupiedShapeWith(placeEntity, shapeOfEntity)))
 				return false;
 		
 		setPartAt(placement, placeEntity, true);
