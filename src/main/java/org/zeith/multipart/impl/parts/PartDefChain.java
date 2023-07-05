@@ -24,7 +24,7 @@ public class PartDefChain
 		model.addParticleIcon(new ResourceLocation("block/chain"));
 		soundType = SoundType.CHAIN;
 		destroySpeed = 5.0F;
-		cloneItem = Items.LADDER::getDefaultInstance;
+		cloneItem = Items.CHAIN::getDefaultInstance;
 	}
 	
 	public Optional<PlacedPartConfiguration> getPlacement(Level level, BlockPos pos, Player player, ItemStack stack, BlockHitResult hit)
