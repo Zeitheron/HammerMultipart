@@ -455,6 +455,10 @@ public class BlockMultipartContainer
 		var placePos = hit.getBlockPos();
 		var air = level.getBlockState(placePos)
 				.canBeReplaced(new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit));
+		
+		var place0Pos = placePos;
+		var pc0 = pc(level, placePos);
+		
 		if(!air)
 		{
 			placePos = hit.getBlockPos().relative(hit.getDirection());
@@ -477,13 +481,29 @@ public class BlockMultipartContainer
 		
 		if(it != null)
 		{
-			var feature = it.getPlacement(level, hit.getBlockPos(), player, held, hit).orElse(null);
+			var manualPlacement = it.tryPlacePartFirst(pc, pc0, level, placePos, player, held, hit);
+			if(manualPlacement.isPresent())
+				return manualPlacement;
+			
+			var feature = it.getPlacement(level, placePos, player, held, hit).orElse(null);
 			if(feature == null) return Optional.empty();
 			
 			var hasWater = WorldPartComponents.BLOCK.defaultBlockState(level, placePos)
 					.getValue(BlockMultipartContainer.WATERLOGGED);
 			if(hasWater && !feature.base().canSurviveInWater(null))
 				return Optional.empty();
+			
+			if(pc0 != null && pc0.tryPlacePart(feature.base(), feature.placer(), feature.placement()))
+			{
+				var part = pc0.getPartAt(feature.placement());
+				level.setBlockAndUpdate(placePos, WorldPartComponents.BLOCK.defaultBlockState(level, place0Pos)
+						.setValue(LIGHT_LEVEL, pc0.parts().stream().mapToInt(PartEntity::getLightEmission).max()
+								.orElse(0))
+				);
+				if(part != null)
+					it.onPartPlacedBy(part, player, held, hand);
+				return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
+			}
 			
 			boolean justTurned = false;
 			
@@ -510,7 +530,6 @@ public class BlockMultipartContainer
 				);
 				if(part != null)
 					it.onPartPlacedBy(part, player, held, hand);
-				
 				return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
 			} else if(justTurned && level.getBlockEntity(placePos) instanceof TileMultipartContainer ctr)
 			{

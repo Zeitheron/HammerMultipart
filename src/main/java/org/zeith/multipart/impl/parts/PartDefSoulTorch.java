@@ -31,7 +31,8 @@ public class PartDefSoulTorch
 	public Optional<PlacedPartConfiguration> getPlacement(Level level, BlockPos pos, Player player, ItemStack stack, BlockHitResult hit)
 	{
 		Direction towards = hit.getDirection().getOpposite();
-		if(level.getBlockState(pos).isFaceSturdy(level, pos, hit.getDirection()))
+		var offPos = pos.relative(towards);
+		if(level.getBlockState(offPos).isFaceSturdy(level, offPos, hit.getDirection()))
 			return Optional.of(new PlacedPartConfiguration(this, PartPlacementsHM.SIDED_PLACEMENT.apply(towards)));
 		return Optional.empty();
 	}

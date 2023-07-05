@@ -2,14 +2,14 @@ package org.zeith.multipart.api.item;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
+import net.minecraft.world.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.*;
+import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.PlacedPartConfiguration;
-import org.zeith.multipart.api.PartEntity;
 
 import java.util.Optional;
 
@@ -27,6 +27,11 @@ public interface IMultipartPlacerItem
 			stack.shrink(1);
 		
 		player.swing(hand);
+	}
+	
+	default Optional<InteractionResult> tryPlacePartFirst(@Nullable PartContainer sameBlockContainer, @Nullable PartContainer neigborContainer, Level level, BlockPos pos, Player player, ItemStack stack, BlockHitResult hit)
+	{
+		return Optional.empty();
 	}
 	
 	Optional<PlacedPartConfiguration> getPlacement(Level level, BlockPos pos, Player player, ItemStack stack, BlockHitResult hit);

@@ -56,41 +56,49 @@ public class PartContainer
 		this.openUI = openUI;
 	}
 	
-	public boolean tryPlacePart(@NotNull PartDefinition def, @Nullable IConfiguredPartPlacer placer, @NotNull PartPlacement placement)
+	public Optional<PartEntity> simulatePlacePart(@NotNull PartDefinition def, @Nullable IConfiguredPartPlacer placer, @NotNull PartPlacement placement)
 	{
 		if(!placement.canBePlacedAlongside(parts.keySet()))
-			return false; // Unable to place here due to other parts blocking it.
+			return Optional.empty(); // Unable to place here due to other parts blocking it.
 		if(!def.canPlaceAt(this, placer, placement))
-			return false; // Unable to place part due to internal checks - reject.
-		
+			return Optional.empty(); // Unable to place part due to internal checks - reject.
 		for(var entry : parts.entrySet())
 		{
-			if(!entry.getKey().isCompatibleWith(placement)) return false;
+			if(!entry.getKey().isCompatibleWith(placement)) return Optional.empty();
 			var part = entry.getValue();
-			if(part.blocksPlacementFor(def, placement)) return false;
+			if(part.blocksPlacementFor(def, placement)) return Optional.empty();
 		}
-		
 		var existingPart = getPartAt(placement);
-		
 		PartEntity placeEntity;
 		if(existingPart != null)
 		{
 			var opt = def.tryMergeWith(this, placement, existingPart);
-			if(opt.isEmpty()) return false; // unable to merge - reject.
+			if(opt.isEmpty()) return Optional.empty(); // unable to merge - reject.
 			placeEntity = opt.orElseThrow();
 		} else
 			placeEntity = placer != null ? placer.create(this, placement) : def.createEntity(this, placement);
-		if(placeEntity == null) return false; // somehow part was not created - reject.
-		
+		if(placeEntity == null) return Optional.empty(); // somehow part was not created - reject.
 		var shapeOfEntity = placeEntity.getPartOccupiedShape();
 		for(var entry : parts.entrySet())
-			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, entry.getValue().getPartOccupiedShapeWith(placeEntity, shapeOfEntity)))
-				return false;
-		
-		setPartAt(placement, placeEntity, true);
-		placeEntity.onPlaced();
-		
-		return true;
+			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, entry.getValue()
+					.getPartOccupiedShapeWith(placeEntity, shapeOfEntity)))
+				return Optional.empty();
+		return Optional.of(placeEntity);
+	}
+	
+	public boolean tryPlacePart(@NotNull PartDefinition def, @Nullable IConfiguredPartPlacer placer, @NotNull PartPlacement placement)
+	{
+		return placeSimulationResult(placement, simulatePlacePart(def, placer, placement));
+	}
+	
+	public boolean placeSimulationResult(PartPlacement placement, Optional<PartEntity> result)
+	{
+		result.ifPresent(placeEntity ->
+		{
+			setPartAt(placement, placeEntity, true);
+			placeEntity.onPlaced();
+		});
+		return result.isPresent();
 	}
 	
 	private PartPlacement[] tintToPlacement = new PartPlacement[0];
