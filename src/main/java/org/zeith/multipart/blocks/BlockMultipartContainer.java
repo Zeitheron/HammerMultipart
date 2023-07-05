@@ -485,6 +485,8 @@ public class BlockMultipartContainer
 			if(hasWater && !feature.base().canSurviveInWater(null))
 				return Optional.empty();
 			
+			boolean justTurned = false;
+			
 			if(air) // perform empty placement
 			{
 				if(isFallback) return Optional.empty();
@@ -494,6 +496,7 @@ public class BlockMultipartContainer
 			{
 				// try to convert a block into multipart!
 				pc = PartContainer.turnIntoMultipart(level, placePos).orElse(null);
+				justTurned = true;
 			}
 			
 			if(pc == null) return Optional.empty();
@@ -509,6 +512,11 @@ public class BlockMultipartContainer
 					it.onPartPlacedBy(part, player, held, hand);
 				
 				return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
+			} else if(justTurned && level.getBlockEntity(placePos) instanceof TileMultipartContainer ctr)
+			{
+				// disassemble part immediately!
+				// Nobody saw anything.
+				ctr.tryDisassemble();
 			}
 		}
 		

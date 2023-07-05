@@ -250,6 +250,11 @@ public abstract class PartEntity
 		return cachedCollisionShape;
 	}
 	
+	public VoxelShape getPartOccupiedShape()
+	{
+		return getCollisionShape();
+	}
+	
 	public InteractionResult use(Player player, InteractionHand hand, BlockHitResult hit, IndexedVoxelShape selection)
 	{
 		return InteractionResult.PASS;

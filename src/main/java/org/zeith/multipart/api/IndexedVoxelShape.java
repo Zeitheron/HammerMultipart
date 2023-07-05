@@ -49,4 +49,10 @@ public class IndexedVoxelShape
 				"shape=" + shape + ']';
 	}
 	
+	public static boolean shapesIntersect(VoxelShape a, VoxelShape b)
+	{
+		var ab = a.toAabbs();
+		var bb = b.toAabbs();
+		return ab.stream().anyMatch(aabb1 -> bb.stream().anyMatch(aabb1::intersects));
+	}
 }

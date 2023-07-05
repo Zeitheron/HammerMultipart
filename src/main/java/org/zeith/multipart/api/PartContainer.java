@@ -60,7 +60,8 @@ public class PartContainer
 	{
 		if(!placement.canBePlacedAlongside(parts.keySet()))
 			return false; // Unable to place here due to other parts blocking it.
-		if(!def.canPlaceAt(this, placer, placement)) return false; // Unable to place part due to internal checks - reject.
+		if(!def.canPlaceAt(this, placer, placement))
+			return false; // Unable to place part due to internal checks - reject.
 		
 		for(var entry : parts.entrySet())
 		{
@@ -80,6 +81,11 @@ public class PartContainer
 		} else
 			placeEntity = placer != null ? placer.create(this, placement) : def.createEntity(this, placement);
 		if(placeEntity == null) return false; // somehow part was not created - reject.
+		
+		var shapeOfEntity = placeEntity.getPartOccupiedShape();
+		for(var entry : parts.entrySet())
+			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, entry.getValue().getPartOccupiedShape()))
+				return false;
 		
 		setPartAt(placement, placeEntity, true);
 		placeEntity.onPlaced();

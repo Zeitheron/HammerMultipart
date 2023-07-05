@@ -52,6 +52,12 @@ public class PartEntityLadder
 	}
 	
 	@Override
+	public VoxelShape getPartOccupiedShape()
+	{
+		return getShape();
+	}
+	
+	@Override
 	public Optional<Tuple2<BlockState, Function<BlockPos, BlockEntity>>> disassemblePart()
 	{
 		return Optional.of(Tuples.immutable(getRenderState().setValue(LadderBlock.WATERLOGGED, container.waterlogged), null));

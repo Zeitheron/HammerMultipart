@@ -60,6 +60,12 @@ public class PartEntityTorch
 	}
 	
 	@Override
+	public VoxelShape getPartOccupiedShape()
+	{
+		return getShape();
+	}
+	
+	@Override
 	public Optional<Tuple2<BlockState, Function<BlockPos, BlockEntity>>> disassemblePart()
 	{
 		return Optional.of(Tuples.immutable(getRenderState(), null));

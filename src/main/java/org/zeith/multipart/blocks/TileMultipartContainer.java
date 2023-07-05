@@ -83,9 +83,10 @@ public class TileMultipartContainer
 		sharedTick();
 	}
 	
-	public void sharedTick()
+	public boolean tryDisassemble()
 	{
 		var ps = container.parts();
+		
 		if(ps.size() == 1)
 		{
 			var part = ps.iterator().next();
@@ -100,9 +101,16 @@ public class TileMultipartContainer
 					if(tile != null)
 						level.setBlockEntity(tile.apply(worldPosition));
 				});
-				return;
+				return true;
 			}
 		}
+		
+		return false;
+	}
+	
+	public void sharedTick()
+	{
+		if(tryDisassemble()) return;
 		
 		if(atTickRate(5) || container.causeBlockUpdate || container.needsSync)
 		{
