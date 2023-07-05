@@ -26,8 +26,8 @@ import org.zeith.hammerlib.api.forge.BlockAPI;
 import org.zeith.hammerlib.net.Network;
 import org.zeith.hammerlib.net.packets.PacketRequestTileSync;
 import org.zeith.multipart.api.*;
-import org.zeith.multipart.client.MultipartEffects;
 import org.zeith.multipart.api.item.IMultipartPlacerItem;
+import org.zeith.multipart.client.MultipartEffects;
 import org.zeith.multipart.init.PartRegistries;
 import org.zeith.multipart.mixins.UseOnContextAccessor;
 
@@ -493,16 +493,42 @@ public class BlockMultipartContainer
 			if(hasWater && !feature.base().canSurviveInWater(null))
 				return Optional.empty();
 			
-			if(pc0 != null && pc0.tryPlacePart(feature.base(), feature.placer(), feature.placement()))
+			Optional<PartEntity> sim =
+					pc0 != null
+					? pc0.simulatePlacePart(feature.base(), feature.placer(), feature.placement())
+					: Optional.empty();
+			
+			sameBlockPlacement:
+			if(sim.isPresent())
 			{
-				var part = pc0.getPartAt(feature.placement());
-				level.setBlockAndUpdate(placePos, WorldPartComponents.BLOCK.defaultBlockState(level, place0Pos)
-						.setValue(LIGHT_LEVEL, pc0.parts().stream().mapToInt(PartEntity::getLightEmission).max()
-								.orElse(0))
-				);
-				if(part != null)
+				var selection = pc0.selectPart(hit.getLocation()).orElse(null);
+				
+				var selShape = selection != null ? selection.getValue().getShape() : Shapes.empty();
+				
+				if(!selShape.isEmpty())
+				{
+					var loc = hit.getLocation().subtract(Vec3.atLowerCornerOf(hit.getBlockPos()));
+					
+					double axial = switch(hit.getDirection().getAxis())
+					{
+						case Y -> loc.y;
+						case X -> loc.x;
+						case Z -> loc.z;
+						default -> -1;
+					};
+					
+					double desired = hit.getDirection().getAxisDirection() == Direction.AxisDirection.NEGATIVE ? 0 : 1;
+					
+					if(Math.abs(axial - desired) < 0.001)
+						break sameBlockPlacement;
+				}
+				
+				if(pc0.placeSimulationResult(feature.placement(), sim))
+				{
+					var part = sim.orElseThrow();
 					it.onPartPlacedBy(part, player, held, hand);
-				return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
+					return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
+				}
 			}
 			
 			boolean justTurned = false;
@@ -516,7 +542,7 @@ public class BlockMultipartContainer
 			{
 				// try to convert a block into multipart!
 				pc = PartContainer.turnIntoMultipart(level, placePos).orElse(null);
-				justTurned = true;
+				justTurned = pc != null;
 			}
 			
 			if(pc == null) return Optional.empty();
