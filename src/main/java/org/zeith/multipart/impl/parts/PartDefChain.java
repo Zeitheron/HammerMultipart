@@ -14,7 +14,7 @@ import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.impl.parts.entities.PartEntityChain;
 import org.zeith.multipart.init.*;
 
-import java.util.*;
+import java.util.Optional;
 
 public class PartDefChain
 		extends PartDefinition
@@ -44,17 +44,7 @@ public class PartDefChain
 	@Override
 	public boolean canPlaceAt(PartContainer container, @Nullable IConfiguredPartPlacer placer, PartPlacement placement)
 	{
-		if(placement != PartPlacementsHM.CENTER) return false;
-		
-		if(placer instanceof ChainPartPlacer c)
-			return container.parts().stream()
-					.map(PartEntity::placement)
-					.map(PartPlacement::getDirection)
-					.filter(Objects::nonNull)
-					.map(Direction::getAxis)
-					.noneMatch(a -> a == c.placeAxis);
-		
-		return false;
+		return placement == PartPlacementsHM.CENTER;
 	}
 	
 	@Override
@@ -66,8 +56,6 @@ public class PartDefChain
 	public record ChainPartPlacer(Direction.Axis placeAxis)
 			implements IConfiguredPartPlacer
 	{
-		
-		@Nullable
 		@Override
 		public PartEntity create(PartContainer container, PartPlacement placement)
 		{

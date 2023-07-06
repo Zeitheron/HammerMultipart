@@ -78,11 +78,4 @@ public class PartEntityChain
 		return Blocks.CHAIN.defaultBlockState()
 				.setValue(ChainBlock.AXIS, axis);
 	}
-	
-	@Override
-	public boolean blocksPlacementFor(PartDefinition definition, PartPlacement definitionPosition)
-	{
-		var dir = definitionPosition.getDirection();
-		return dir != null && axis != null && dir.getAxis() == axis;
-	}
 }
