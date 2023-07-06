@@ -481,9 +481,58 @@ public class BlockMultipartContainer
 		
 		if(it != null)
 		{
-			var manualPlacement = it.tryPlacePartFirst(pc, pc0, level, placePos, player, held, hit);
+			var manualPlacement = it.tryPlacePartFirst(pc, pc0, level, place0Pos, player, held, hit);
 			if(manualPlacement.isPresent())
 				return manualPlacement;
+			
+			{
+				var feature = it.getPlacement(level, place0Pos, player, held, hit).orElse(null);
+				if(feature == null) return Optional.empty();
+				
+				var hasWater = WorldPartComponents.BLOCK.defaultBlockState(level, place0Pos)
+						.getValue(BlockMultipartContainer.WATERLOGGED);
+				if(hasWater && !feature.base().canSurviveInWater(null))
+					return Optional.empty();
+				
+				Optional<PartEntity> sim =
+						pc0 != null
+						? pc0.simulatePlacePart(feature.base(), feature.placer(), feature.placement())
+						: Optional.empty();
+				
+				sameBlockPlacement:
+				if(sim.isPresent())
+				{
+					var selection = pc0.selectPart(hit.getLocation()).orElse(null);
+					
+					var selShape = selection != null ? selection.getValue().getShape() : Shapes.empty();
+					
+					if(!selShape.isEmpty())
+					{
+						var loc = hit.getLocation().subtract(Vec3.atLowerCornerOf(hit.getBlockPos()));
+						
+						double axial = switch(hit.getDirection().getAxis())
+						{
+							case Y -> loc.y;
+							case X -> loc.x;
+							case Z -> loc.z;
+							default -> -1;
+						};
+						
+						double desired =
+								hit.getDirection().getAxisDirection() == Direction.AxisDirection.NEGATIVE ? 0 : 1;
+						
+						if(Math.abs(axial - desired) < 0.001)
+							break sameBlockPlacement;
+					}
+					
+					if(pc0.placeSimulationResult(feature.placement(), sim))
+					{
+						var part = sim.orElseThrow();
+						it.onPartPlacedBy(part, player, held, hand);
+						return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
+					}
+				}
+			}
 			
 			var feature = it.getPlacement(level, placePos, player, held, hit).orElse(null);
 			if(feature == null) return Optional.empty();
@@ -492,44 +541,6 @@ public class BlockMultipartContainer
 					.getValue(BlockMultipartContainer.WATERLOGGED);
 			if(hasWater && !feature.base().canSurviveInWater(null))
 				return Optional.empty();
-			
-			Optional<PartEntity> sim =
-					pc0 != null
-					? pc0.simulatePlacePart(feature.base(), feature.placer(), feature.placement())
-					: Optional.empty();
-			
-			sameBlockPlacement:
-			if(sim.isPresent())
-			{
-				var selection = pc0.selectPart(hit.getLocation()).orElse(null);
-				
-				var selShape = selection != null ? selection.getValue().getShape() : Shapes.empty();
-				
-				if(!selShape.isEmpty())
-				{
-					var loc = hit.getLocation().subtract(Vec3.atLowerCornerOf(hit.getBlockPos()));
-					
-					double axial = switch(hit.getDirection().getAxis())
-					{
-						case Y -> loc.y;
-						case X -> loc.x;
-						case Z -> loc.z;
-						default -> -1;
-					};
-					
-					double desired = hit.getDirection().getAxisDirection() == Direction.AxisDirection.NEGATIVE ? 0 : 1;
-					
-					if(Math.abs(axial - desired) < 0.001)
-						break sameBlockPlacement;
-				}
-				
-				if(pc0.placeSimulationResult(feature.placement(), sim))
-				{
-					var part = sim.orElseThrow();
-					it.onPartPlacedBy(part, player, held, hand);
-					return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
-				}
-			}
 			
 			boolean justTurned = false;
 			
