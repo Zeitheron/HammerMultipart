@@ -14,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.*;
@@ -376,5 +377,18 @@ public abstract class PartEntity
 	public boolean blocksPlacementFor(PartDefinition definition, PartPlacement definitionPosition)
 	{
 		return false;
+	}
+	
+	public void onChunkUnloaded()
+	{
+	}
+	
+	/**
+	 * Called when this is first added to the world (by {@link LevelChunk#addAndRegisterBlockEntity(BlockEntity)})
+	 * or right before the first tick when the chunk is generated or loaded from disk.
+	 * Override instead of adding {@code if (firstTick)} stuff in update.
+	 */
+	public void onLoad()
+	{
 	}
 }

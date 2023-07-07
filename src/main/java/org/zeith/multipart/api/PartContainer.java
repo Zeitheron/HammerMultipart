@@ -173,6 +173,7 @@ public class PartContainer
 		{
 			needsSync = true;
 			causeBlockUpdate = true;
+			part.onLoad();
 		}
 	}
 	
@@ -447,6 +448,18 @@ public class PartContainer
 	}
 	
 	protected final List<QueuedPartRemoval> toRemove = new ArrayList<>();
+	
+	public void onChunkUnloaded()
+	{
+		for(var p : parts.values())
+			p.onChunkUnloaded();
+	}
+	
+	public void onLoad()
+	{
+		for(var p : parts.values())
+			p.onLoad();
+	}
 	
 	protected record QueuedPartRemoval(PartPlacement placement, boolean drops, boolean sound, boolean particles) {}
 	

@@ -151,6 +151,20 @@ public class TileMultipartContainer
 		}
 	}
 	
+	@Override
+	public void onChunkUnloaded()
+	{
+		super.onChunkUnloaded();
+		container.onChunkUnloaded();
+	}
+	
+	@Override
+	public void onLoad()
+	{
+		super.onLoad();
+		container.onLoad();
+	}
+	
 	public long getHash()
 	{
 		return prevHash;
