@@ -2,6 +2,7 @@ package org.zeith.multipart.blocks;
 
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.*;
+import net.minecraft.server.level.*;
 import net.minecraft.util.*;
 import net.minecraft.world.*;
 import net.minecraft.world.entity.*;
@@ -14,6 +15,8 @@ import net.minecraft.world.level.block.entity.*;
 import net.minecraft.world.level.block.state.*;
 import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.level.material.*;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.*;
 import net.minecraftforge.client.extensions.common.IClientBlockExtensions;
@@ -30,6 +33,7 @@ import org.zeith.multipart.api.item.IMultipartPlacerItem;
 import org.zeith.multipart.client.MultipartEffects;
 import org.zeith.multipart.init.PartRegistries;
 import org.zeith.multipart.mixins.UseOnContextAccessor;
+import org.zeith.multipart.net.*;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -68,6 +72,37 @@ public class BlockMultipartContainer
 		if(state.is(this))
 			return state;
 		return defaultBlockState().setValue(WATERLOGGED, fs.getType() == Fluids.WATER);
+	}
+	
+	@Override
+	public List<ItemStack> getDrops(BlockState state, LootParams.Builder params)
+	{
+		PartContainer pc = null;
+		
+		var be = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
+		if(be instanceof TileMultipartContainer tmc)
+			pc = tmc.container;
+		else
+		{
+			var level = params.getLevel();
+			var posVec = params.getParameter(LootContextParams.ORIGIN);
+			var pos = new BlockPos((int) posVec.x, (int) posVec.y, (int) posVec.z);
+			pc = pc(level, pos);
+		}
+		
+		// Gather all drops from a block.
+		if(pc != null)
+		{
+			var player =
+					params.getOptionalParameter(LootContextParams.THIS_ENTITY) instanceof ServerPlayer sp ? sp : null;
+			return pc.parts()
+					.stream()
+					.map(part -> part.getDrops(player, params))
+					.flatMap(List::stream)
+					.toList();
+		}
+		
+		return List.of();
 	}
 	
 	@Override
@@ -398,12 +433,29 @@ public class BlockMultipartContainer
 	}
 	
 	@Override
+	public boolean addLandingEffects(BlockState state1, ServerLevel level, BlockPos pos, BlockState state2, LivingEntity entity, int numberOfParticles)
+	{
+		Network.sendToTracking(
+				level.getChunkAt(pos),
+				new PacketSendLandingEffect(pos, numberOfParticles, entity)
+		);
+		
+		return true;
+	}
+	
+	@Override
+	public boolean addRunningEffects(BlockState state, Level level, BlockPos pos, Entity entity)
+	{
+		if(!level.isClientSide())
+			Network.sendToTracking(level.getChunkAt(pos), new PacketSendRunningEffect(pos, entity));
+		return true;
+	}
+	
+	@Override
 	public void initializeClient(Consumer<IClientBlockExtensions> consumer)
 	{
 		consumer.accept(new IClientBlockExtensions()
 		{
-			final Random random = new Random();
-			
 			@Override
 			public boolean addHitEffects(BlockState state, Level level, HitResult target, ParticleEngine manager)
 			{
@@ -452,7 +504,7 @@ public class BlockMultipartContainer
 	{
 		if(player == null) return Optional.empty();
 		
-		var placePos = hit.getBlockPos();
+		var placePos = hit.getBlockPos().immutable();
 		var air = level.getBlockState(placePos)
 				.canBeReplaced(new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit));
 		
@@ -461,7 +513,7 @@ public class BlockMultipartContainer
 		
 		if(!air)
 		{
-			placePos = hit.getBlockPos().relative(hit.getDirection());
+			placePos = placePos.relative(hit.getDirection());
 			air = level.getBlockState(placePos)
 					.canBeReplaced(new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit))
 					|| level.getBlockState(placePos).is(Blocks.WATER);
@@ -485,21 +537,22 @@ public class BlockMultipartContainer
 			if(manualPlacement.isPresent())
 				return manualPlacement;
 			
+			sameBlockPlacement:
 			{
 				var feature = it.getPlacement(level, place0Pos, player, held, hit).orElse(null);
-				if(feature == null) return Optional.empty();
+				if(feature == null)
+					break sameBlockPlacement;
 				
 				var hasWater = WorldPartComponents.BLOCK.defaultBlockState(level, place0Pos)
 						.getValue(BlockMultipartContainer.WATERLOGGED);
 				if(hasWater && !feature.base().canSurviveInWater(null))
-					return Optional.empty();
+					break sameBlockPlacement;
 				
 				Optional<PartEntity> sim =
 						pc0 != null
 						? pc0.simulatePlacePart(feature.base(), feature.placer(), feature.placement())
 						: Optional.empty();
 				
-				sameBlockPlacement:
 				if(sim.isPresent())
 				{
 					var selection = pc0.selectPart(hit.getLocation()).orElse(null);

@@ -4,14 +4,19 @@ import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.core.*;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.phys.*;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.client.model.data.ModelData;
 import org.jetbrains.annotations.*;
 import org.zeith.multipart.api.*;
+import org.zeith.multipart.client.model.BakedPartDefinitionModel;
 import org.zeith.multipart.client.rendering.IPartRenderer;
 
-import java.util.function.Consumer;
+import java.util.List;
+import java.util.function.*;
 
 public interface IClientPartDefinitionExtensions
 {
@@ -40,6 +45,36 @@ public interface IClientPartDefinitionExtensions
 	default boolean addDestroyEffects(PartEntity part, ParticleEngine manager)
 	{
 		return false;
+	}
+	
+	default void addLandingEffects(PartEntity part, VoxelShape shape, LivingEntity living, int numberOfParticles, AABB entityBb, Vec3 particlePos)
+	{
+		MultipartEffects.spawnLandingFX(
+				part.container().pos(),
+				shape,
+				particlePos,
+				numberOfParticles,
+				MultipartEffects.defaultPartSpriteSelector(part)
+		);
+	}
+	
+	default void addRunningEffects(PartEntity part, VoxelShape shape, Entity living, AABB entityBb, Vec3 particlePos, Vec3 particleMotion)
+	{
+		MultipartEffects.spawnRunningFX(
+				part.container().pos(),
+				shape,
+				particlePos,
+				particleMotion,
+				MultipartEffects.defaultPartSpriteSelector(part)
+		);
+	}
+	
+	default <T> List<T> gatherParticles(BakedPartDefinitionModel data, PartEntity part, BiFunction<ResourceLocation, Integer, T> spriteFactory)
+	{
+		return part.getParticleIcons(data.allParticles.keySet())
+				.stream()
+				.map(tex -> spriteFactory.apply(tex, part.getTintForParticle(tex)))
+				.toList();
 	}
 	
 	default boolean getQuads(PartEntity part, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType, Consumer<BakedQuad> addQuad)

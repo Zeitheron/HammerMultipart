@@ -79,6 +79,11 @@ public abstract class PartEntity
 		return 0xFFFFFF;
 	}
 	
+	public int getTintForParticle(ResourceLocation texture)
+	{
+		return 0xFFFFFF;
+	}
+	
 	protected VoxelShape updateCollisionShape()
 	{
 		return updateShape();
