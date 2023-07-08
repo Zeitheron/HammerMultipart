@@ -125,7 +125,7 @@ public class DynamicMultipartModel
 		@Override
 		public boolean useAmbientOcclusion()
 		{
-			return false;
+			return true;
 		}
 		
 		@Override
@@ -137,7 +137,7 @@ public class DynamicMultipartModel
 		@Override
 		public boolean usesBlockLight()
 		{
-			return false;
+			return true;
 		}
 		
 		@Override
