@@ -5,11 +5,13 @@ import net.minecraft.world.item.Items;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.apache.logging.log4j.LogManager;
 import org.slf4j.*;
 import org.zeith.hammerlib.core.adapter.LanguageAdapter;
+import org.zeith.hammerlib.util.CommonMessages;
 
-import static org.zeith.multipart.init.PartRegistries.registerFallbackPartPlacer;
 import static org.zeith.multipart.init.PartDefinitionsHM.*;
+import static org.zeith.multipart.init.PartRegistries.registerFallbackPartPlacer;
 
 @Mod(HammerMultipart.MOD_ID)
 public class HammerMultipart
@@ -19,6 +21,9 @@ public class HammerMultipart
 	
 	public HammerMultipart()
 	{
+		CommonMessages.printMessageOnIllegalRedistribution(HammerMultipart.class,
+				LogManager.getLogger(HammerMultipart.class), "HammerMultipart", "https://www.curseforge.com/minecraft/mc-mods/hammer-multipart");
+		
 		var modBus = FMLJavaModLoadingContext.get().getModEventBus();
 		
 		LanguageAdapter.registerMod(MOD_ID);
