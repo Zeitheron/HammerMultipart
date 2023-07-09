@@ -65,7 +65,7 @@ public class BakedPartDefinitionModel
 		renderState = Blocks.AIR.defaultBlockState();
 		for(var mloc : part.getRenderModels())
 		{
-			var model = mm.getModel(mloc);
+			var model = getModel(mloc);
 			if(renderType == null || model.getRenderTypes(renderState, rand, data).contains(renderType))
 				model.getQuads(renderState, side, rand, data, renderType).forEach(quadList);
 		}
@@ -83,7 +83,7 @@ public class BakedPartDefinitionModel
 	public BakedModel getModel(ResourceLocation model)
 	{
 		var mod = allModels.get(model);
-		if(mod == null) return Minecraft.getInstance().getModelManager().getMissingModel();
+		if(mod == null) return Minecraft.getInstance().getModelManager().getModel(model);
 		return mod;
 	}
 }
