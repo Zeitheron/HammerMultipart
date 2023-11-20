@@ -9,7 +9,7 @@ jei_version=15.2.0.22
 # Persistent mod info
 mod_id=hammermultipart
 archive_name=HammerMultipart
-mod_name=Hammer Multipart
+mod_name=HammerMultipart
 mod_description=Simple and powerful library to place multiple things in one block space.
 mod_authors=Zeitheron
 mod_license=All Rights Reserved
