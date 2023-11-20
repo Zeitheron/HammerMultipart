@@ -412,4 +412,9 @@ public abstract class PartEntity
 	{
 		return position;
 	}
+	
+	public boolean isViewBlocking()
+	{
+		return false;
+	}
 }

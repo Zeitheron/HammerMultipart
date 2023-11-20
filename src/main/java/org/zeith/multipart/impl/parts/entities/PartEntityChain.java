@@ -78,4 +78,10 @@ public class PartEntityChain
 		return Blocks.CHAIN.defaultBlockState()
 				.setValue(ChainBlock.AXIS, axis);
 	}
+	
+	@Override
+	public boolean isViewBlocking()
+	{
+		return false;
+	}
 }

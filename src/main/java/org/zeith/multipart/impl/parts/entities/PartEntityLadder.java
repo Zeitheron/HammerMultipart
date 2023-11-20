@@ -99,4 +99,10 @@ public class PartEntityLadder
 	{
 		return placement.getDirection() == trapdoorState.getValue(TrapDoorBlock.FACING).getOpposite();
 	}
+	
+	@Override
+	public boolean isViewBlocking()
+	{
+		return false;
+	}
 }

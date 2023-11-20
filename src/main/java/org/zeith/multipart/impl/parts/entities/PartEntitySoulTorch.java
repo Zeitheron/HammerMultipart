@@ -135,4 +135,10 @@ public class PartEntitySoulTorch
 		return Blocks.SOUL_WALL_TORCH.defaultBlockState()
 				.setValue(WallTorchBlock.FACING, placement.getDirection().getOpposite());
 	}
+	
+	@Override
+	public boolean isViewBlocking()
+	{
+		return false;
+	}
 }
