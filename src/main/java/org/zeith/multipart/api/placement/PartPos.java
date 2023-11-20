@@ -3,6 +3,7 @@ package org.zeith.multipart.api.placement;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.*;
 import org.zeith.hammerlib.util.java.Cast;
@@ -20,7 +21,7 @@ public record PartPos(@NotNull BlockPos pos, @Nullable PartPlacement placement)
 	public static final Codec<PartPos> CODEC = RecordCodecBuilder.create(instance ->
 			instance.group(
 					BlockPos.CODEC.fieldOf("pos").forGetter(PartPos::pos),
-					PartRegistries.partPlacements().getCodec().fieldOf("placement").forGetter(PartPos::placement)
+					ExtraCodecs.lazyInitializedCodec(() -> PartRegistries.partPlacements().getCodec()).fieldOf("placement").forGetter(PartPos::placement)
 			).apply(instance, PartPos::new)
 	);
 	
