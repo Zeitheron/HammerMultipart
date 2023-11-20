@@ -162,6 +162,7 @@ public class TileMultipartContainer
 	public void onLoad()
 	{
 		super.onLoad();
+		container.level = level;
 		container.onLoad();
 	}
 	
