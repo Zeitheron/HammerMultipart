@@ -25,7 +25,7 @@ import net.minecraftforge.fml.DistExecutor;
 import org.jetbrains.annotations.*;
 import org.zeith.hammerlib.api.io.NBTSerializationHelper;
 import org.zeith.hammerlib.util.java.tuples.Tuple2;
-import org.zeith.multipart.api.placement.PartPlacement;
+import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.client.MultipartEffects;
 
 import javax.annotation.Nullable;
@@ -39,6 +39,7 @@ public abstract class PartEntity
 	protected final PartDefinition definition;
 	protected final PartContainer container;
 	protected final PartPlacement placement;
+	protected final PartPos position;
 	protected final int[] tintIndices;
 	
 	protected boolean syncDirty;
@@ -52,6 +53,7 @@ public abstract class PartEntity
 		this.container = container;
 		this.definition = definition;
 		this.placement = placement;
+		this.position = new PartPos(container.pos(), placement);
 	}
 	
 	@NotNull
@@ -141,6 +143,7 @@ public abstract class PartEntity
 	public void onRemoved(Player harvester, boolean spawnDrops, boolean playSound, boolean spawnParticles)
 	{
 		invalidateCaps();
+		onRemove();
 		
 		if(playSound)
 		{
@@ -386,6 +389,7 @@ public abstract class PartEntity
 	
 	public void onChunkUnloaded()
 	{
+		onRemove();
 	}
 	
 	/**
@@ -395,5 +399,17 @@ public abstract class PartEntity
 	 */
 	public void onLoad()
 	{
+	}
+	
+	/**
+	 * Called when this entity is either broken or becomes unloaded.
+	 */
+	public void onRemove()
+	{
+	}
+	
+	public PartPos pos()
+	{
+		return position;
 	}
 }

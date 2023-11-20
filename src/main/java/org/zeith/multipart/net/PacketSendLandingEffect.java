@@ -100,7 +100,7 @@ public class PacketSendLandingEffect
 		if(level != null && level.getEntity(entityId) instanceof LivingEntity living)
 		{
 			var ctr = BlockMultipartContainer.pc(level, pos);
-			
+			if(ctr == null) return;
 			for(PartEntity part : ctr.parts())
 			{
 				var shape = Shapes.join(part.getShape().move(pos.getX(), pos.getY(), pos.getZ()),
@@ -108,7 +108,8 @@ public class PacketSendLandingEffect
 						BooleanOp.AND
 				);
 				if(shape.isEmpty()) continue;
-				IClientPartDefinitionExtensions.of(part)
+				IClientPartDefinitionExtensions
+						.of(part)
 						.addLandingEffects(part, shape, living, numberOfParticles, entityAABB, particlePos);
 			}
 		}

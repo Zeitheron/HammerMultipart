@@ -97,6 +97,7 @@ public class PacketSendRunningEffect
 			if(entity == null) return;
 			
 			var ctr = BlockMultipartContainer.pc(level, pos);
+			if(ctr == null) return;
 			
 			Vec3 vec3 = entity.getDeltaMovement();
 			Vec3 motion = new Vec3(vec3.x * -4.0D, 1.5D, vec3.z * -4.0D);
@@ -108,7 +109,8 @@ public class PacketSendRunningEffect
 						BooleanOp.AND
 				);
 				if(shape.isEmpty()) continue;
-				IClientPartDefinitionExtensions.of(part)
+				IClientPartDefinitionExtensions
+						.of(part)
 						.addRunningEffects(part, shape, entity, entityAABB, particlePos, motion);
 			}
 		}
