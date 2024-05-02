@@ -1,20 +1,28 @@
 package org.zeith.multipart.blocks;
 
 import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.core.*;
-import net.minecraft.server.level.*;
-import net.minecraft.util.*;
-import net.minecraft.world.*;
-import net.minecraft.world.entity.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.*;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.*;
-import net.minecraft.world.level.block.state.*;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.*;
-import net.minecraft.world.level.material.*;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.*;
@@ -22,18 +30,23 @@ import net.minecraft.world.phys.shapes.*;
 import net.minecraftforge.client.extensions.common.IClientBlockExtensions;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.fml.LogicalSide;
 import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.HammerLib;
 import org.zeith.hammerlib.api.blocks.INoItemBlock;
 import org.zeith.hammerlib.api.forge.BlockAPI;
 import org.zeith.hammerlib.net.Network;
 import org.zeith.hammerlib.net.packets.PacketRequestTileSync;
+import org.zeith.hammerlib.util.SidedLocal;
+import org.zeith.hammerlib.util.java.consumers.Consumer2;
+import org.zeith.hammerlib.util.java.functions.Function2;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.item.IMultipartPlacerItem;
 import org.zeith.multipart.client.MultipartEffects;
 import org.zeith.multipart.init.PartRegistries;
 import org.zeith.multipart.mixins.UseOnContextAccessor;
-import org.zeith.multipart.net.*;
+import org.zeith.multipart.net.PacketSendLandingEffect;
+import org.zeith.multipart.net.PacketSendRunningEffect;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -46,6 +59,7 @@ public class BlockMultipartContainer
 	public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 	public static final BooleanProperty REDSTONE_SOURCE = BooleanProperty.create("redstone_source");
 	public static final IntegerProperty LIGHT_LEVEL = IntegerProperty.create("light", 0, 15);
+	public static final BooleanProperty TICKING = BooleanProperty.create("ticking");
 	
 	public BlockMultipartContainer()
 	{
@@ -59,13 +73,47 @@ public class BlockMultipartContainer
 		var defState = defaultBlockState()
 				.setValue(REDSTONE_SOURCE, false)
 				.setValue(WATERLOGGED, false)
-				.setValue(LIGHT_LEVEL, 0);
+				.setValue(LIGHT_LEVEL, 0)
+				.setValue(TICKING, false);
 		
 		registerDefaultState(defState);
 		MinecraftForge.EVENT_BUS.addListener(this::clickWithItem);
 	}
 	
-	public BlockState defaultBlockState(Level level, BlockPos pos)
+	protected final SidedLocal<Map<LevelAccessor, Set<BlockPos>>> activePlacers = SidedLocal.initializeForBoth(WeakHashMap::new);
+	
+	public <T extends LevelAccessor> void safePlace(T level, BlockPos pos, Consumer2<T, BlockPos> placer)
+	{
+		pos = pos.immutable();
+		var action = startSafePlace(level, pos);
+		placer.accept(level, pos);
+		endSafePlace(action, pos);
+	}
+	
+	public <T extends LevelAccessor, R> R safePlace(T level, BlockPos pos, Function2<T, BlockPos, R> placer)
+	{
+		pos = pos.immutable();
+		var action = startSafePlace(level, pos);
+		var res = placer.apply(level, pos);
+		endSafePlace(action, pos);
+		return res;
+	}
+	
+	private Set<BlockPos> startSafePlace(LevelAccessor level, BlockPos pos)
+	{
+		pos = pos.immutable();
+		var placers = activePlacers.get(level.isClientSide() ? LogicalSide.CLIENT : LogicalSide.SERVER);
+		var plc = placers.computeIfAbsent(level, l -> new HashSet<>());
+		plc.add(pos);
+		return plc;
+	}
+	
+	private void endSafePlace(Set<BlockPos> action, BlockPos pos)
+	{
+		action.remove(pos);
+	}
+	
+	public BlockState defaultBlockState(BlockGetter level, BlockPos pos)
 	{
 		var state = level.getBlockState(pos);
 		FluidState fs = level.getFluidState(pos);
@@ -93,8 +141,7 @@ public class BlockMultipartContainer
 		// Gather all drops from a block.
 		if(pc != null)
 		{
-			var player =
-					params.getOptionalParameter(LootContextParams.THIS_ENTITY) instanceof ServerPlayer sp ? sp : null;
+			var player = params.getOptionalParameter(LootContextParams.THIS_ENTITY) instanceof ServerPlayer sp ? sp : null;
 			return pc.parts()
 					.stream()
 					.map(part -> part.getDrops(player, params))
@@ -125,7 +172,7 @@ public class BlockMultipartContainer
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> b)
 	{
-		b.add(LIGHT_LEVEL, REDSTONE_SOURCE, ALT, WATERLOGGED);
+		b.add(LIGHT_LEVEL, REDSTONE_SOURCE, ALT, WATERLOGGED, TICKING);
 	}
 	
 	@Override
@@ -134,9 +181,13 @@ public class BlockMultipartContainer
 		super.neighborChanged(state, level, pos, blk, from, p_60514_);
 		if(blk != this)
 		{
-			var pc = pc(level, pos);
-			if(pc == null) return;
-			pc.neighborChanged(null, from, level.getBlockState(from), state.getValue(WATERLOGGED));
+			if(!(level.getBlockEntity(pos) instanceof TileMultipartContainer tpc)) return;
+			
+			var placers = activePlacers.get(level.isClientSide() ? LogicalSide.CLIENT : LogicalSide.SERVER);
+			if(placers.getOrDefault(level, Set.of()).contains(pos)) return;
+			
+			tpc.container.neighborChanged(null, from, level.getBlockState(from), state.getValue(WATERLOGGED));
+			tpc.updateLogic(!level.isClientSide());
 		}
 	}
 	
@@ -148,11 +199,21 @@ public class BlockMultipartContainer
 			accessor.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(accessor));
 		}
 		
-		var pc = pc(accessor, pos);
-		if(pc == null) return ourState;
-		pc.neighborChanged(direction, neigborPos, neigborState, ourState.getValue(WATERLOGGED));
+		if(!(accessor.getBlockEntity(pos) instanceof TileMultipartContainer tpc)) return ourState;
 		
-		return ourState;
+		var placers = activePlacers.get(accessor.isClientSide() ? LogicalSide.CLIENT : LogicalSide.SERVER);
+		if(placers.getOrDefault(accessor, Set.of()).contains(pos)) return ourState;
+		
+		var pc = tpc.container;
+		if(pc == null) return ourState;
+		if(pc.level == null && tpc.hasLevel()) pc.level = tpc.getLevel();
+		pc.neighborChanged(direction, neigborPos, neigborState, ourState.getValue(WATERLOGGED));
+		pc.refreshTicking();
+		tpc.updateLogic(!accessor.isClientSide());
+		pc.resetShapes();
+		tpc.sync();
+		
+		return ourState.setValue(TICKING, pc.isTicking());
 	}
 	
 	@Override
@@ -366,7 +427,7 @@ public class BlockMultipartContainer
 		var pc = pc(level, pos);
 		if(pc == null) return false;
 		return pc.parts().stream().anyMatch(part -> part.canConnectRedstone(direction))
-				|| (isSignalSource(state) && direction != null);
+			   || (isSignalSource(state) && direction != null);
 	}
 	
 	@Override
@@ -407,7 +468,7 @@ public class BlockMultipartContainer
 	@Override
 	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type)
 	{
-		return BlockAPI.ticker(level);
+		return state.getValue(TICKING) ? BlockAPI.ticker(level) : null;
 	}
 	
 	@Override
@@ -515,8 +576,8 @@ public class BlockMultipartContainer
 		{
 			placePos = placePos.relative(hit.getDirection());
 			air = level.getBlockState(placePos)
-					.canBeReplaced(new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit))
-					|| level.getBlockState(placePos).is(Blocks.WATER);
+						  .canBeReplaced(new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit))
+				  || level.getBlockState(placePos).is(Blocks.WATER);
 		}
 		var pc = pc(level, placePos);
 		
@@ -600,8 +661,7 @@ public class BlockMultipartContainer
 			if(air) // perform empty placement
 			{
 				if(isFallback) return Optional.empty();
-				level.setBlockAndUpdate(placePos, WorldPartComponents.BLOCK.defaultBlockState(level, placePos));
-				pc = pc(level, placePos);
+				pc = WorldPartComponents.createFragile(level, placePos);
 			} else if(pc == null)
 			{
 				// try to convert a block into multipart!
@@ -614,13 +674,14 @@ public class BlockMultipartContainer
 			if(pc.tryPlacePart(feature.base(), feature.placer(), feature.placement()))
 			{
 				var part = pc.getPartAt(feature.placement());
-				level.setBlockAndUpdate(placePos, WorldPartComponents.BLOCK.defaultBlockState(level, placePos)
-						.setValue(LIGHT_LEVEL, pc.parts().stream().mapToInt(PartEntity::getLightEmission).max()
-								.orElse(0))
-				);
-				if(part != null)
-					it.onPartPlacedBy(part, player, held, hand);
-				return Optional.of(InteractionResult.sidedSuccess(level.isClientSide));
+				if(part != null) it.onPartPlacedBy(part, player, held, hand);
+				if(pc.parts().stream().anyMatch(PartEntity::isRedstoneSource))
+				{
+					pc.updateRedstone();
+					pc.causeRedstoneUpdate = true;
+				}
+				pc.owner.syncContainer(true);
+				return Optional.of(InteractionResult.sidedSuccess(level.isClientSide()));
 			} else if(justTurned && level.getBlockEntity(placePos) instanceof TileMultipartContainer ctr)
 			{
 				// disassemble part immediately!

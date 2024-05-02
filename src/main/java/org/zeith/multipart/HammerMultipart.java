@@ -38,6 +38,12 @@ public class HammerMultipart
 			LOG.info("Registered torch multipart target.");
 		}
 		
+		if(REDSTONE_TORCH_PART.isRegistered())
+		{
+			registerFallbackPartPlacer(Items.REDSTONE_TORCH, REDSTONE_TORCH_PART::getPlacement);
+			LOG.info("Registered redstone torch multipart target.");
+		}
+		
 		if(SOUL_TORCH_PART.isRegistered())
 		{
 			registerFallbackPartPlacer(Items.SOUL_TORCH, SOUL_TORCH_PART::getPlacement);

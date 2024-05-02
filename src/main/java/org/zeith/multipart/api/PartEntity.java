@@ -35,6 +35,7 @@ import java.util.function.Function;
 @SuppressWarnings("UnstableApiUsage")
 public abstract class PartEntity
 		extends CapabilityProvider<PartEntity>
+		implements IPartEntity
 {
 	protected final PartDefinition definition;
 	protected final PartContainer container;
@@ -42,7 +43,11 @@ public abstract class PartEntity
 	protected final PartPos position;
 	protected final int[] tintIndices;
 	
+	private boolean addedToWorld;
+	
+	@Deprecated(forRemoval = true)
 	protected boolean syncDirty;
+	
 	protected boolean isShapeDirty, isCollisionShapeDirty;
 	protected VoxelShape cachedShape, cachedCollisionShape;
 	
@@ -94,20 +99,6 @@ public abstract class PartEntity
 	protected VoxelShape updateShape()
 	{
 		return placement.getExampleShape();
-	}
-	
-	public void tickServer()
-	{
-		tickShared();
-	}
-	
-	public void tickClient()
-	{
-		tickShared();
-	}
-	
-	protected void tickShared()
-	{
 	}
 	
 	public Optional<Tuple2<BlockState, Function<BlockPos, BlockEntity>>> disassemblePart()
@@ -224,6 +215,7 @@ public abstract class PartEntity
 		return placement;
 	}
 	
+	@Override
 	public boolean isShapeDirty()
 	{
 		return isShapeDirty || cachedShape == null;
@@ -253,7 +245,7 @@ public abstract class PartEntity
 	{
 		if(isCollisionShapeDirty())
 		{
-			cachedCollisionShape = updateShape();
+			cachedCollisionShape = updateCollisionShape();
 			isCollisionShapeDirty = false;
 		}
 		return cachedCollisionShape;
@@ -278,14 +270,21 @@ public abstract class PartEntity
 	{
 	}
 	
+	@Override
 	public boolean syncDirty()
 	{
 		return syncDirty;
 	}
 	
+	@Override
 	public void markSynced()
 	{
 		syncDirty = false;
+	}
+	
+	public void markForSync()
+	{
+		container.markForSync();
 	}
 	
 	public ItemStack getCloneItemStack(BlockHitResult target, Player player, IndexedVoxelShape selection)
@@ -302,6 +301,7 @@ public abstract class PartEntity
 		return false;
 	}
 	
+	@Override
 	public int getLightEmission()
 	{
 		return 0;
@@ -416,5 +416,15 @@ public abstract class PartEntity
 	public boolean isViewBlocking()
 	{
 		return false;
+	}
+	
+	public final boolean isAddedToWorld()
+	{
+		return addedToWorld;
+	}
+	
+	public void setAddedToWorld(boolean addedToWorld)
+	{
+		this.addedToWorld = addedToWorld;
 	}
 }

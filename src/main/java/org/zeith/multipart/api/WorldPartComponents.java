@@ -38,4 +38,13 @@ public class WorldPartComponents
 	{
 		return isSideSolid(level, pos, side, SupportType.FULL);
 	}
+	
+	public static PartContainer createFragile(LevelAccessor level, BlockPos pos)
+	{
+		return BLOCK.safePlace(level, pos, (l, p) ->
+		{
+			l.setBlock(p, BLOCK.defaultBlockState(l, p), 4 | 16);
+			return BlockMultipartContainer.pc(l, p);
+		});
+	}
 }

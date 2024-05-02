@@ -1,28 +1,32 @@
 package org.zeith.multipart.api;
 
-import net.minecraft.core.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.*;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.model.data.ModelProperty;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fml.DistExecutor;
-import org.apache.logging.log4j.*;
-import org.jetbrains.annotations.*;
-import org.zeith.multipart.api.placement.*;
-import org.zeith.multipart.client.IClientPartDefinitionExtensions;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
+import org.zeith.multipart.api.placement.IConfiguredPartPlacer;
+import org.zeith.multipart.api.placement.PartPlacement;
 import org.zeith.multipart.blocks.BlockMultipartContainer;
+import org.zeith.multipart.client.IClientPartDefinitionExtensions;
 import org.zeith.multipart.init.PartRegistries;
 
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.function.Consumer;
 
 public class PartContainer
 {
@@ -30,6 +34,8 @@ public class PartContainer
 	public static final ModelProperty<PartContainer> CONTAINER_PROP = new ModelProperty<>();
 	public static final ModelProperty<Long> PART_HASH = new ModelProperty<>();
 	protected final LinkedHashMap<PartPlacement, PartEntity> parts = new LinkedHashMap<>();
+	
+	protected final Set<ITickingPartEntity> ticking = new HashSet<>();
 	
 	@ApiStatus.Internal
 	public final LinkedHashMap<PartPlacement, Object> renderers = new LinkedHashMap<>();
@@ -43,17 +49,19 @@ public class PartContainer
 	
 	public int lightLevel;
 	
+	@Deprecated(forRemoval = true)
 	public boolean needsSync;
+	
 	public boolean causeBlockUpdate;
 	public boolean causeRedstoneUpdate;
 	public boolean waterlogged;
 	
-	public final Consumer<Player> openUI;
+	public final IPartContainerTile owner;
 	
-	public PartContainer(BlockPos pos, Consumer<Player> openUI)
+	public PartContainer(BlockPos pos, IPartContainerTile owner)
 	{
 		this.pos = pos;
-		this.openUI = openUI;
+		this.owner = owner;
 	}
 	
 	public Optional<PartEntity> simulatePlacePart(@NotNull PartDefinition def, @Nullable IConfiguredPartPlacer placer, @NotNull PartPlacement placement)
@@ -79,9 +87,8 @@ public class PartContainer
 			placeEntity = placer != null ? placer.create(this, placement) : def.createEntity(this, placement);
 		if(placeEntity == null) return Optional.empty(); // somehow part was not created - reject.
 		var shapeOfEntity = placeEntity.getPartOccupiedShape();
-		for(var entry : parts.entrySet())
-			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, entry.getValue()
-					.getPartOccupiedShapeWith(placeEntity, shapeOfEntity)))
+		for(var part : parts())
+			if(IndexedVoxelShape.shapesIntersect(shapeOfEntity, part.getPartOccupiedShapeWith(placeEntity, shapeOfEntity)))
 				return Optional.empty();
 		return Optional.of(placeEntity);
 	}
@@ -97,6 +104,12 @@ public class PartContainer
 		{
 			setPartAt(placement, placeEntity, true);
 			placeEntity.onPlaced();
+			if(placeEntity.isRedstoneSource())
+			{
+				updateRedstone();
+				causeRedstoneUpdate = true;
+			}
+			markForSync();
 		});
 		return result.isPresent();
 	}
@@ -121,7 +134,7 @@ public class PartContainer
 		{
 			try
 			{
-				int layerCount = parts.values().stream().mapToInt(e -> e.tintIndices.length).sum();
+				int layerCount = parts().stream().mapToInt(e -> e.tintIndices.length).sum();
 				tintToPlacement = new PartPlacement[layerCount];
 				
 				int i = 0;
@@ -152,15 +165,24 @@ public class PartContainer
 	
 	public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side)
 	{
-		return parts.values().stream().map(pe -> pe.getCapability(cap, side))
+		return parts().stream().map(pe -> pe.getCapability(cap, side))
 				.filter(LazyOptional::isPresent)
 				.findFirst()
 				.orElseGet(LazyOptional::empty);
 	}
 	
+	public void refreshTicking()
+	{
+		ticking.clear();
+		for(var part : parts())
+			if(part instanceof ITickingPartEntity tpe)
+				ticking.add(tpe);
+	}
+	
 	public void setPartAt(PartPlacement placement, PartEntity part, boolean shouldUpdate)
 	{
 		parts.put(placement, part);
+		refreshTicking();
 		
 		DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
 		{
@@ -171,9 +193,14 @@ public class PartContainer
 		
 		if(shouldUpdate)
 		{
-			needsSync = true;
 			causeBlockUpdate = true;
 			part.onLoad();
+			part.setAddedToWorld(true);
+			if(!causeRedstoneUpdate && part.isRedstoneSource())
+			{
+				causeRedstoneUpdate = true;
+				updateRedstone();
+			}
 		}
 	}
 	
@@ -185,65 +212,61 @@ public class PartContainer
 	
 	public void tickServer()
 	{
-		lightLevel = 0;
-		
 		boolean updateShape = causeBlockUpdate;
-		for(var part : parts.values())
+		for(var part : ticking)
 		{
 			part.tickServer();
 			if(part.isShapeDirty())
 				updateShape = true;
-			lightLevel = part.getLightEmission();
 			if(part.syncDirty())
 			{
-				needsSync = true;
+				markForSync();
 				part.markSynced();
 			}
 		}
 		
-		while(!toRemove.isEmpty())
-		{
-			var rem = toRemove.remove(0);
-			var part = parts.remove(rem.placement);
-			if(part != null)
-			{
-				renderers.remove(rem.placement);
-				part.onRemoved(null, rem.drops(), rem.sound(), rem.particles());
-				causeBlockUpdate = true;
-				updateShape = true;
-			}
-		}
+		if(removePendingParts()) updateShape = true;
 		
 		tickShape(updateShape);
 	}
 	
 	public void tickClient()
 	{
-		lightLevel = 0;
-		
 		boolean updateShape = causeBlockUpdate;
-		for(var part : parts.values())
+		for(var part : ticking)
 		{
 			part.tickClient();
-			if(part.isShapeDirty())
-				updateShape = true;
-			lightLevel = part.getLightEmission();
+			if(part.isShapeDirty()) updateShape = true;
 		}
+		if(removePendingParts()) updateShape = true;
 		
+		tickShape(updateShape);
+		needsSync = false;
+	}
+	
+	public boolean removePendingParts()
+	{
+		boolean mod = false;
 		while(!toRemove.isEmpty())
 		{
 			var rem = toRemove.remove(0);
 			var part = parts.remove(rem.placement);
 			if(part != null)
 			{
+				mod = true;
 				part.onRemoved(null, rem.drops(), rem.sound(), rem.particles());
+				part.setAddedToWorld(false);
+				if(part.isRedstoneSource())
+					updateRedstone();
 				causeBlockUpdate = true;
-				updateShape = true;
 			}
 		}
-		
-		tickShape(updateShape);
-		needsSync = false;
+		if(mod)
+		{
+			refreshTicking();
+			markForSync();
+		}
+		return mod;
 	}
 	
 	protected void tickShape(boolean updateShape)
@@ -253,24 +276,40 @@ public class PartContainer
 		if(cachedCollisionShape == null || updateShape)
 			updateCollisionShape();
 		if(updateShape)
+		{
+			updateLightLevel();
 			updateRedstone();
+		}
+	}
+	
+	public void updateLightLevel()
+	{
+		int pll = lightLevel;
+		lightLevel = 0;
+		boolean addedToWorld = level != null;
+		for(var part : parts())
+		{
+			part.setAddedToWorld(addedToWorld);
+			lightLevel = Math.max(lightLevel, part.getLightEmission());
+		}
+		if(pll != lightLevel) causeBlockUpdate = true;
 	}
 	
 	protected VoxelShape cachedShape, cachedCollisionShape;
 	
 	protected void updateShape()
 	{
-		cachedShape = parts.values()
+		cachedShape = parts()
 				.stream()
-				.map(PartEntity::updateShape)
+				.map(PartEntity::getShape)
 				.reduce(Shapes.empty(), Shapes::or);
 	}
 	
 	protected void updateCollisionShape()
 	{
-		cachedCollisionShape = parts.values()
+		cachedCollisionShape = parts()
 				.stream()
-				.map(PartEntity::updateCollisionShape)
+				.map(PartEntity::getCollisionShape)
 				.reduce(Shapes.empty(), Shapes::or);
 	}
 	
@@ -307,18 +346,32 @@ public class PartContainer
 		return cachedCollisionShape;
 	}
 	
+	public void resetShapes()
+	{
+		cachedCollisionShape = null;
+		cachedShape = null;
+	}
+	
 	public void updateRedstone()
 	{
+		boolean changed = false;
 		for(var dir : Direction.values())
 		{
 			int i = dir.ordinal();
 			int j = strongRedstoneSignals[i];
 			if((strongRedstoneSignals[i] = parts().stream().mapToInt(p -> p.getStrongSignal(dir)).max().orElse(0)) != j)
-				causeBlockUpdate = true;
+				changed = true;
+			
 			j = weakRedstoneSignals[i];
 			if((weakRedstoneSignals[i] = parts().stream().mapToInt(p -> p.getWeakSignal(dir)).max().orElse(0)) != j)
-				causeBlockUpdate = true;
+				changed = true;
 		}
+		
+		if(!changed) return;
+		
+		causeBlockUpdate = true;
+		causeRedstoneUpdate = true;
+		markForSync();
 	}
 	
 	public CompoundTag serializeNBT()
@@ -326,7 +379,7 @@ public class PartContainer
 		var tag = new CompoundTag();
 		
 		var parts = new ListTag();
-		for(var e : this.parts.values())
+		for(var e : parts())
 		{
 			var element = new CompoundTag();
 			element.putString("Pos", PartRegistries.partPlacements().getKey(e.placement()).toString());
@@ -443,7 +496,12 @@ public class PartContainer
 			placement = ent.getMainPart();
 			ent = parts.remove(placement);
 			ent.onRemovedBy(player, willHarvest);
+			ent.setAddedToWorld(false);
+			if(ent.isRedstoneSource())
+				updateRedstone();
 			causeBlockUpdate = true;
+			refreshTicking();
+			markForSync();
 		}
 	}
 	
@@ -451,14 +509,25 @@ public class PartContainer
 	
 	public void onChunkUnloaded()
 	{
-		for(var p : parts.values())
+		for(var p : parts())
+		{
+			p.setAddedToWorld(false);
 			p.onChunkUnloaded();
+		}
 	}
 	
 	public void onLoad()
 	{
-		for(var p : parts.values())
+		for(var p : parts())
+		{
+			p.setAddedToWorld(true);
 			p.onLoad();
+		}
+	}
+	
+	public boolean isTicking()
+	{
+		return !ticking.isEmpty();
 	}
 	
 	protected record QueuedPartRemoval(PartPlacement placement, boolean drops, boolean sound, boolean particles) {}
@@ -476,16 +545,10 @@ public class PartContainer
 			var cfg = definition.convertBlockToPart(level, pos, state).orElse(null);
 			if(cfg != null)
 			{
-				level.setBlockAndUpdate(pos, WorldPartComponents.BLOCK.defaultBlockState(level, pos)
-						.setValue(BlockMultipartContainer.LIGHT_LEVEL, 0)
-				);
-				var pc = BlockMultipartContainer.pc(level, pos);
+				var pc = WorldPartComponents.createFragile(level, pos);
 				if(pc == null) continue;
 				var pe = cfg.placer().create(pc, cfg.placement());
-				pc.setPartAt(cfg.placement(), pe, true);
-				level.setBlockAndUpdate(pos, WorldPartComponents.BLOCK.defaultBlockState(level, pos)
-						.setValue(BlockMultipartContainer.LIGHT_LEVEL, pe.getLightEmission())
-				);
+				pc.setPartAt(cfg.placement(), pe, false);
 				return Optional.of(pc);
 			}
 		}
@@ -494,7 +557,13 @@ public class PartContainer
 	
 	public void neighborChanged(Direction from, BlockPos neigborPos, BlockState neigborState, boolean waterlogged)
 	{
-		for(PartEntity part : parts())
+		for(var part : parts())
 			part.neighborChanged(from, neigborPos, neigborState, waterlogged);
+		markForSync();
+	}
+	
+	public void markForSync()
+	{
+		owner.syncContainer(false);
 	}
 }

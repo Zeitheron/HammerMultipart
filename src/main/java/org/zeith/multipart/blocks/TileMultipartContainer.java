@@ -1,6 +1,7 @@
 package org.zeith.multipart.blocks;
 
-import net.minecraft.core.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -13,8 +14,10 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.client.model.data.ModelData;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
-import org.jetbrains.annotations.*;
-import org.zeith.hammerlib.api.forge.*;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.zeith.hammerlib.api.forge.BlockAPI;
+import org.zeith.hammerlib.api.forge.ContainerAPI;
 import org.zeith.hammerlib.api.tiles.IContainerTile;
 import org.zeith.hammerlib.tiles.TileSyncableTickable;
 import org.zeith.multipart.api.*;
@@ -23,7 +26,7 @@ import java.util.Objects;
 
 public class TileMultipartContainer
 		extends TileSyncableTickable
-		implements IContainerTile
+		implements IContainerTile, IPartContainerTile
 {
 	public final PartContainer container;
 	
@@ -32,10 +35,11 @@ public class TileMultipartContainer
 	public TileMultipartContainer(BlockEntityType<?> type, BlockPos pos, BlockState state)
 	{
 		super(type, pos, state);
-		this.container = new PartContainer(pos.immutable(), this::open);
+		this.container = new PartContainer(pos.immutable(), this);
 	}
 	
-	public void open(Player player)
+	@Override
+	public void openContainer(Player player)
 	{
 		ContainerAPI.openContainerTile(player, this);
 	}
@@ -52,35 +56,75 @@ public class TileMultipartContainer
 	@Override
 	public void serverTick()
 	{
-		container.level = level;
-		container.waterlogged = getBlockState().getOptionalValue(BlockStateProperties.WATERLOGGED).orElse(false);
-		
 		container.tickServer();
-		if(container.needsSync)
+		if(container.causeBlockUpdate)
 		{
-			sync();
-			container.needsSync = false;
+			level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
+			BlockAPI.sendBlockUpdate(level, worldPosition);
+			container.causeBlockUpdate = false;
 		}
-		
-		if(container.isEmpty())
-		{
-			container.lightLevel = 0;
-			level.removeBlock(worldPosition, true);
-			updateRedstoneNeighbors();
-			return;
-		}
-		
-		sharedTick();
 	}
 	
 	@Override
 	public void clientTick()
 	{
-		container.level = level;
-		container.waterlogged = getBlockState().getOptionalValue(BlockStateProperties.WATERLOGGED).orElse(false);
 		container.tickClient();
 		container.needsSync = false;
-		sharedTick();
+	}
+	
+	protected void refreshHash()
+	{
+		long hash = container.calcPartsHash();
+		if(hash != prevHash)
+		{
+			prevHash = hash;
+			container.recalcTintLayers(hash);
+			container.updateLightLevel();
+			container.causeBlockUpdate = true;
+		}
+	}
+	
+	protected boolean isUpdatingLogic = false;
+	
+	public boolean updateLogic(boolean server)
+	{
+		if(isUpdatingLogic) return false;
+		isUpdatingLogic = true;
+		container.level = level;
+		container.waterlogged = getBlockState().getOptionalValue(BlockStateProperties.WATERLOGGED).orElse(false);
+		if(tryDisassemble()) return true;
+		
+		if(container.causeBlockUpdate || container.needsSync)
+			refreshHash();
+		
+		if(container.causeRedstoneUpdate)
+			updatePowerStrength();
+		
+		if(container.causeBlockUpdate && server)
+		{
+			boolean isSource = container.parts().stream().anyMatch(PartEntity::isRedstoneSource);
+			int light = Mth.clamp(container.parts().stream().mapToInt(PartEntity::getLightEmission).max()
+					.orElse(0), 0, 15);
+			
+			var st = level.getBlockState(worldPosition);
+			level.setBlockAndUpdate(worldPosition,
+					st.setValue(BlockMultipartContainer.ALT, !st.getValue(BlockMultipartContainer.ALT))
+							.setValue(BlockMultipartContainer.REDSTONE_SOURCE, isSource)
+							.setValue(BlockMultipartContainer.LIGHT_LEVEL, light)
+			);
+			level.updateNeighborsAt(worldPosition, st.getBlock());
+			BlockAPI.sendBlockUpdate(level, worldPosition);
+		}
+		
+		if(container.needsSync && server)
+			sync();
+		
+		container.causeRedstoneUpdate = false;
+		container.causeBlockUpdate = false;
+		container.needsSync = false;
+		setLightLevel(container.lightLevel);
+		isUpdatingLogic = false;
+		return false;
 	}
 	
 	public boolean tryDisassemble()
@@ -103,52 +147,14 @@ public class TileMultipartContainer
 				});
 				return true;
 			}
+		} else if(ps.isEmpty())
+		{
+			level.removeBlock(worldPosition, false);
+			updateRedstoneNeighbors();
+			return true;
 		}
 		
 		return false;
-	}
-	
-	public void sharedTick()
-	{
-		if(tryDisassemble()) return;
-		
-		if(atTickRate(5) || container.causeBlockUpdate || container.needsSync)
-		{
-			long hash = container.calcPartsHash();
-			if(hash != prevHash)
-			{
-				prevHash = hash;
-				container.recalcTintLayers(hash);
-				BlockAPI.sendBlockUpdate(level, worldPosition);
-			}
-		}
-		
-		if(container.causeRedstoneUpdate)
-		{
-			updateRedstoneNeighbors();
-			container.causeRedstoneUpdate = false;
-		}
-		
-		if(container.causeBlockUpdate)
-		{
-			if(isOnServer())
-			{
-				boolean isSource = container.parts().stream().anyMatch(PartEntity::isRedstoneSource);
-				int light = Mth.clamp(container.parts().stream().mapToInt(PartEntity::getLightEmission).max()
-						.orElse(0), 0, 15);
-				
-				var st = level.getBlockState(worldPosition);
-				level.setBlockAndUpdate(worldPosition,
-						st.setValue(BlockMultipartContainer.ALT, !st.getValue(BlockMultipartContainer.ALT))
-								.setValue(BlockMultipartContainer.REDSTONE_SOURCE, isSource)
-								.setValue(BlockMultipartContainer.LIGHT_LEVEL, light)
-				);
-				level.updateNeighborsAt(worldPosition, st.getBlock());
-				BlockAPI.sendBlockUpdate(level, worldPosition);
-				updatePowerStrength();
-			}
-			container.causeBlockUpdate = false;
-		}
 	}
 	
 	@Override
@@ -164,6 +170,22 @@ public class TileMultipartContainer
 		super.onLoad();
 		container.level = level;
 		container.onLoad();
+		container.refreshTicking();
+		setLightLevel(container.lightLevel);
+	}
+	
+	protected boolean hasReceivedUpdateTag = false;
+	
+	@Override
+	public void handleUpdateTag(CompoundTag tag)
+	{
+		super.handleUpdateTag(tag);
+		if(!hasReceivedUpdateTag && isOnClient())
+		{
+			container.causeBlockUpdate = true;
+			updateLogic(false);
+			hasReceivedUpdateTag = true;
+		}
 	}
 	
 	public long getHash()
@@ -174,10 +196,14 @@ public class TileMultipartContainer
 	public void setLightLevel(int light)
 	{
 		light = Mth.clamp(light, 0, 15);
+		var ticking = container.isTicking();
 		var prop = BlockMultipartContainer.LIGHT_LEVEL;
+		var prop2 = BlockMultipartContainer.TICKING;
 		var state = getBlockState();
-		if(state.hasProperty(prop) && !Objects.equals(state.getValue(prop), light))
-			level.setBlockAndUpdate(worldPosition, state.setValue(prop, light));
+		if(state.hasProperty(prop) && state.hasProperty(prop2) && (
+				!Objects.equals(state.getValue(prop), light)
+				|| !Objects.equals(state.getValue(prop2), ticking)
+		)) level.setBlockAndUpdate(worldPosition, state.setValue(prop, light).setValue(prop2, ticking));
 	}
 	
 	private final int[] weakRedstones = new int[6], strongRedstones = new int[6];
@@ -202,6 +228,7 @@ public class TileMultipartContainer
 		}
 		
 		if(upd) updateRedstoneNeighbors();
+		container.causeRedstoneUpdate = false;
 	}
 	
 	public void updateRedstoneNeighbors()
@@ -223,6 +250,12 @@ public class TileMultipartContainer
 	public void readNBT(CompoundTag nbt)
 	{
 		container.deserializeNBT(nbt);
+		
+		if(hasLevel() && isOnClient())
+		{
+			level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
+			BlockAPI.sendBlockUpdate(level, worldPosition);
+		}
 	}
 	
 	@Override
@@ -240,5 +273,29 @@ public class TileMultipartContainer
 				.with(PartContainer.CONTAINER_PROP, container)
 				.with(PartContainer.PART_HASH, prevHash)
 				.build();
+	}
+	
+	@Override
+	public PartContainer getContainer()
+	{
+		return container;
+	}
+	
+	protected long lastSyncGT;
+	
+	@Override
+	public void syncContainer(boolean force)
+	{
+		long gt = level != null ? level.getGameTime() : -125L;
+		if(lastSyncGT == gt && !force) return;
+		lastSyncGT = gt;
+		container.needsSync = true;
+		container.removePendingParts();
+		if(tryDisassemble()) return;
+		sync();
+		refreshHash();
+		updateLogic(isOnServer());
+		container.waterlogged = getBlockState().getOptionalValue(BlockStateProperties.WATERLOGGED).orElse(false);
+		container.needsSync = false;
 	}
 }

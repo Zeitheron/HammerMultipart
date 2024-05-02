@@ -1,6 +1,7 @@
 package org.zeith.multipart.impl.placements;
 
-import net.minecraft.world.phys.shapes.*;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.zeith.multipart.api.placement.PartPlacement;
 
 public class PartPlacementOfCenter
@@ -15,5 +16,12 @@ public class PartPlacementOfCenter
 	public VoxelShape getExampleShape()
 	{
 		return sampleShape;
+	}
+	
+	@Override
+	public String toString()
+	{
+		return "PartPlacementOfCenter{" +
+			   '}';
 	}
 }

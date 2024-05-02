@@ -39,4 +39,12 @@ public class PartPlacementOfDirection
 	{
 		return sampleShape;
 	}
+	
+	@Override
+	public String toString()
+	{
+		return "PartPlacementOfDirection{" +
+			   "direction=" + direction +
+			   '}';
+	}
 }

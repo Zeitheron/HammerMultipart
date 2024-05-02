@@ -16,4 +16,11 @@ public class PartPlacementOfFrame
 	{
 		return sampleShape;
 	}
+	
+	@Override
+	public String toString()
+	{
+		return "PartPlacementOfFrame{" +
+			   '}';
+	}
 }

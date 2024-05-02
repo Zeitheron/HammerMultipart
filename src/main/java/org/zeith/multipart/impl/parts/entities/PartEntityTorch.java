@@ -112,8 +112,7 @@ public class PartEntityTorch
 		if(towards == null) return;
 		if(PartPlacementsHM.SIDED_PLACEMENT.apply(towards) != placement) return;
 		BlockPos pos = container.pos().relative(towards);
-		if(waterlogged ||
-				!container.level().getBlockState(pos).isFaceSturdy(container.level(), pos, towards.getOpposite()))
+		if(waterlogged || !container.level().getBlockState(pos).isFaceSturdy(container.level(), pos, towards.getOpposite()))
 		{
 			container.queuePartRemoval(placement, true, true, true);
 		}
