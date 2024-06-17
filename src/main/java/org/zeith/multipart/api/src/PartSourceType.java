@@ -4,8 +4,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
-import org.zeith.hammerlib.abstractions.sources.*;
-import org.zeith.multipart.api.*;
+import org.zeith.hammerlib.abstractions.sources.IObjectSource;
+import org.zeith.hammerlib.abstractions.sources.IObjectSourceType;
+import org.zeith.multipart.api.PartEntity;
+import org.zeith.multipart.api.WorldPartComponents;
 import org.zeith.multipart.api.placement.PartPos;
 import org.zeith.multipart.init.PartRegistries;
 
@@ -47,7 +49,7 @@ public class PartSourceType
 		{
 			this.pos = new PartPos(
 					new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z")),
-					PartRegistries.partPlacements().getValue(ResourceLocation.tryParse(tag.getString("Placement")))
+					PartRegistries.partPlacements().get(ResourceLocation.tryParse(tag.getString("Placement")))
 			);
 		}
 		

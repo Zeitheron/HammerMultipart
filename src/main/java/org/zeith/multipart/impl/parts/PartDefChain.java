@@ -1,9 +1,10 @@
 package org.zeith.multipart.impl.parts;
 
-import net.minecraft.core.*;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.*;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
@@ -12,7 +13,8 @@ import org.jetbrains.annotations.Nullable;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.impl.parts.entities.PartEntityChain;
-import org.zeith.multipart.init.*;
+import org.zeith.multipart.init.PartDefinitionsHM;
+import org.zeith.multipart.init.PartPlacementsHM;
 
 import java.util.Optional;
 
@@ -21,7 +23,7 @@ public class PartDefChain
 {
 	public PartDefChain()
 	{
-		model.addParticleIcon(new ResourceLocation("block/chain"));
+		model.addParticleIcon("block/chain");
 		soundType = SoundType.CHAIN;
 		destroySpeed = 5.0F;
 		cloneItem = Items.CHAIN::getDefaultInstance;

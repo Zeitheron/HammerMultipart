@@ -2,7 +2,6 @@ package org.zeith.multipart.impl.parts;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -23,7 +22,7 @@ public class PartDefRedstoneTorch
 {
 	public PartDefRedstoneTorch()
 	{
-		model.addParticleIcon(new ResourceLocation("block/redstone_torch"));
+		model.addParticleIcon("block/redstone_torch");
 		soundType = SoundType.WOOD;
 		destroySpeed = 0.0001F;
 		survivesInWater = false;

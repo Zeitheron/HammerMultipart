@@ -1,7 +1,6 @@
 package org.zeith.multipart.blocks;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
@@ -11,9 +10,8 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.client.model.data.ModelData;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.api.forge.BlockAPI;
@@ -23,6 +21,7 @@ import org.zeith.hammerlib.tiles.TileSyncableTickable;
 import org.zeith.multipart.api.*;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public class TileMultipartContainer
 		extends TileSyncableTickable
@@ -94,7 +93,7 @@ public class TileMultipartContainer
 		container.waterlogged = getBlockState().getOptionalValue(BlockStateProperties.WATERLOGGED).orElse(false);
 		if(tryDisassemble()) return true;
 		
-		if(container.causeBlockUpdate || container.needsSync)
+		if(container.causeBlockUpdate)
 			refreshHash();
 		
 		if(container.causeRedstoneUpdate)
@@ -177,9 +176,9 @@ public class TileMultipartContainer
 	protected boolean hasReceivedUpdateTag = false;
 	
 	@Override
-	public void handleUpdateTag(CompoundTag tag)
+	public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider)
 	{
-		super.handleUpdateTag(tag);
+		super.handleUpdateTag(tag, provider);
 		if(!hasReceivedUpdateTag && isOnClient())
 		{
 			container.causeBlockUpdate = true;
@@ -240,16 +239,16 @@ public class TileMultipartContainer
 	}
 	
 	@Override
-	public CompoundTag writeNBT(CompoundTag nbt)
+	public CompoundTag writeNBT(CompoundTag nbt, HolderLookup.Provider provider)
 	{
-		var res = container.serializeNBT();
+		var res = container.serializeNBT(provider);
 		return nbt.isEmpty() ? res : nbt.merge(res);
 	}
 	
 	@Override
-	public void readNBT(CompoundTag nbt)
+	public void readNBT(CompoundTag nbt, HolderLookup.Provider provider)
 	{
-		container.deserializeNBT(nbt);
+		container.deserializeNBT(provider, nbt);
 		
 		if(hasLevel() && isOnClient())
 		{
@@ -258,12 +257,9 @@ public class TileMultipartContainer
 		}
 	}
 	
-	@Override
-	public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side)
+	public <T, C> Optional<T> findCapability(@NotNull BlockCapability<T, C> cap, @Nullable C context)
 	{
-		var c = container.getCapability(cap, side);
-		if(c.isPresent()) return c;
-		return super.getCapability(cap, side);
+		return container.getCapability(cap, context);
 	}
 	
 	@Override

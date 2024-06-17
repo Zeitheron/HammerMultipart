@@ -1,6 +1,7 @@
 package org.zeith.multipart.impl.parts.entities;
 
-import net.minecraft.core.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -10,12 +11,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
-import org.zeith.hammerlib.util.java.tuples.*;
+import org.zeith.hammerlib.util.java.tuples.Tuple2;
+import org.zeith.hammerlib.util.java.tuples.Tuples;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.PartPlacement;
 import org.zeith.multipart.init.PartPlacementsHM;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 public class PartEntityLadder
@@ -34,7 +37,7 @@ public class PartEntityLadder
 	@Override
 	public List<ItemStack> getDrops(@Nullable ServerPlayer harvester, LootParams.Builder drops)
 	{
-		return Blocks.LADDER.getDrops(Blocks.LADDER.defaultBlockState(), drops);
+		return Blocks.LADDER.defaultBlockState().getDrops(drops);
 	}
 	
 	@Override

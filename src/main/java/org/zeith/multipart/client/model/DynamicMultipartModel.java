@@ -1,23 +1,28 @@
 package org.zeith.multipart.client.model;
 
-import com.google.gson.*;
-import com.mojang.datafixers.util.Pair;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonObject;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.model.*;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.*;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.ChunkRenderTypeSet;
-import net.minecraftforge.client.model.data.ModelData;
-import net.minecraftforge.client.model.geometry.IGeometryBakingContext;
-import org.jetbrains.annotations.*;
+import net.neoforged.neoforge.client.ChunkRenderTypeSet;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.client.model.geometry.IGeometryBakingContext;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.client.model.*;
+import org.zeith.hammerlib.util.mcf.Resources;
 import org.zeith.multipart.api.*;
-import org.zeith.multipart.client.*;
+import org.zeith.multipart.client.IClientPartDefinitionExtensions;
 import org.zeith.multipart.init.PartRegistries;
 
 import java.util.*;
@@ -32,7 +37,7 @@ public class DynamicMultipartModel
 	}
 	
 	@Override
-	public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides, ResourceLocation modelLocation)
+	public BakedModel bake(IGeometryBakingContext context, ModelBaker baker, Function<Material, TextureAtlasSprite> spriteGetter, ModelState modelState, ItemOverrides overrides)
 	{
 		Map<PartDefinition, BakedPartDefinitionModel> bakedParts = new HashMap<>();
 		for(PartDefinition def : PartRegistries.partDefinitions())
@@ -46,15 +51,9 @@ public class DynamicMultipartModel
 			}
 		}
 		
-		var defaultParticle = spriteGetter.apply(new Material(InventoryMenu.BLOCK_ATLAS, new ResourceLocation("block/stone")));
+		var defaultParticle = spriteGetter.apply(new Material(InventoryMenu.BLOCK_ATLAS, Resources.location("block/stone")));
 		
 		return new Baked(bakedParts, defaultParticle);
-	}
-	
-	@Override
-	public Collection<Material> getMaterials(IGeometryBakingContext context, Function<ResourceLocation, UnbakedModel> modelGetter, Set<Pair<String, String>> missingTextureErrors)
-	{
-		return List.of();
 	}
 	
 	public static UnaryOperator<BakedQuad> replaceTintIndex(int src, int dst)
@@ -70,6 +69,15 @@ public class DynamicMultipartModel
 	private record Baked(Map<PartDefinition, BakedPartDefinitionModel> bakedParts, TextureAtlasSprite defaultParticle)
 			implements IBakedModel, IBakedMultipartModel
 	{
+		@Override
+		public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData)
+		{
+			return modelData.derive()
+					.with(PartContainer.CONTAINER_LEVEL, level)
+					.with(PartContainer.CONTAINER_POS, pos.immutable())
+					.build();
+		}
+		
 		@Override
 		public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType)
 		{

@@ -21,7 +21,7 @@ public record PartPos(@NotNull BlockPos pos, @Nullable PartPlacement placement)
 	public static final Codec<PartPos> CODEC = RecordCodecBuilder.create(instance ->
 			instance.group(
 					BlockPos.CODEC.fieldOf("pos").forGetter(PartPos::pos),
-					ExtraCodecs.lazyInitializedCodec(() -> PartRegistries.partPlacements().getCodec()).fieldOf("placement").forGetter(PartPos::placement)
+					Codec.lazyInitialized(() -> PartRegistries.partPlacements().byNameCodec()).fieldOf("placement").forGetter(PartPos::placement)
 			).apply(instance, PartPos::new)
 	);
 	

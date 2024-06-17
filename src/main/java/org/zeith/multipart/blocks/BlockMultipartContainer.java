@@ -1,5 +1,6 @@
 package org.zeith.multipart.blocks;
 
+import com.mojang.serialization.MapCodec;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -7,8 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -27,14 +27,16 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.*;
-import net.minecraftforge.client.extensions.common.IClientBlockExtensions;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.fml.LogicalSide;
+import net.neoforged.fml.LogicalSide;
+import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.HammerLib;
+import org.zeith.hammerlib.annotations.RegistryName;
 import org.zeith.hammerlib.api.blocks.INoItemBlock;
 import org.zeith.hammerlib.api.forge.BlockAPI;
+import org.zeith.hammerlib.api.registrars.Registrar;
 import org.zeith.hammerlib.net.Network;
 import org.zeith.hammerlib.net.packets.PacketRequestTileSync;
 import org.zeith.hammerlib.util.SidedLocal;
@@ -61,14 +63,9 @@ public class BlockMultipartContainer
 	public static final IntegerProperty LIGHT_LEVEL = IntegerProperty.create("light", 0, 15);
 	public static final BooleanProperty TICKING = BooleanProperty.create("ticking");
 	
-	public BlockMultipartContainer()
+	public BlockMultipartContainer(Block.Properties props)
 	{
-		super(Block.Properties.of()
-				.forceSolidOff()
-				.dynamicShape()
-				.noOcclusion()
-				.lightLevel(s -> s.getValue(LIGHT_LEVEL))
-		);
+		super(props);
 		
 		var defState = defaultBlockState()
 				.setValue(REDSTONE_SOURCE, false)
@@ -77,7 +74,7 @@ public class BlockMultipartContainer
 				.setValue(TICKING, false);
 		
 		registerDefaultState(defState);
-		MinecraftForge.EVENT_BUS.addListener(this::clickWithItem);
+		NeoForge.EVENT_BUS.addListener(this::clickWithItem);
 	}
 	
 	protected final SidedLocal<Map<LevelAccessor, Set<BlockPos>>> activePlacers = SidedLocal.initializeForBoth(WeakHashMap::new);
@@ -245,11 +242,11 @@ public class BlockMultipartContainer
 	public SoundType getSoundType(BlockState state, LevelReader level, BlockPos pos, @Nullable Entity entity)
 	{
 		var pc = pc(level, pos);
-		if(pc == null || !(entity instanceof Player player)) return SoundType.STONE;
+		if(pc == null || !(entity instanceof Player player)) return SoundType.EMPTY;
 		var hit = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
-		if(hit.getType() != HitResult.Type.BLOCK) return SoundType.STONE;
+		if(hit.getType() != HitResult.Type.BLOCK) return SoundType.EMPTY;
 		var pe = pc.selectPart(hit.getLocation()).orElse(null);
-		if(pe == null) return SoundType.STONE;
+		if(pe == null) return SoundType.EMPTY;
 		return pe.getValue().definition().getSoundType(pe.getValue());
 	}
 	
@@ -357,6 +354,14 @@ public class BlockMultipartContainer
 		return Shapes.empty();
 	}
 	
+	public static final MapCodec<BlockMultipartContainer> CODEC = simpleCodec(BlockMultipartContainer::new);
+	
+	@Override
+	protected MapCodec<? extends BaseEntityBlock> codec()
+	{
+		return CODEC;
+	}
+	
 	@Override
 	public RenderShape getRenderShape(BlockState p_49232_)
 	{
@@ -364,14 +369,25 @@ public class BlockMultipartContainer
 	}
 	
 	@Override
-	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit)
+	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit)
 	{
 		var pc = pc(level, pos);
 		if(pc == null) return InteractionResult.PASS;
 		return pc.selectPart(hit.getLocation())
 				.map(Map.Entry::getValue)
-				.map(ent -> ent.use(player, hand, hit, ent.getSelectionShape(player, hit)))
+				.map(ent -> ent.useWithoutItem(player, hit, ent.getSelectionShape(player, hit)))
 				.orElse(InteractionResult.PASS);
+	}
+	
+	@Override
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit)
+	{
+		var pc = pc(level, pos);
+		if(pc == null) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+		return pc.selectPart(hit.getLocation())
+				.map(Map.Entry::getValue)
+				.map(ent -> ent.useItemOn(player, hand, hit, ent.getSelectionShape(player, hit)))
+				.orElse(ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION);
 	}
 	
 	@Override
@@ -446,7 +462,7 @@ public class BlockMultipartContainer
 	}
 	
 	@Override
-	public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter level, BlockPos pos, Player player)
+	public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player)
 	{
 		var pc = pc(level, pos);
 		if(pc != null && target instanceof BlockHitResult res)
@@ -542,6 +558,24 @@ public class BlockMultipartContainer
 				return true;
 			}
 		});
+	}
+	
+	@Override
+	protected void spawnDestroyParticles(Level level, Player player, BlockPos pos, BlockState state)
+	{
+		specifics: if(player != null)
+		{
+			var hit = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
+			var pc = pc(level, hit.getBlockPos());
+			if(pc == null) break specifics;
+			var part = pc.selectPart(hit.getLocation());
+			if(part.isEmpty()) break specifics;
+			var pe = part.orElseThrow();
+			MultipartEffects.spawnBreakFX(pe.getValue());
+			return;
+		}
+		
+		super.spawnDestroyParticles(level, player, pos, state);
 	}
 	
 	public Optional<InteractionResult> useItem(UseOnContext context)
@@ -704,7 +738,7 @@ public class BlockMultipartContainer
 		float f5 = Mth.sin(-f * ((float) Math.PI / 180F));
 		float f6 = f3 * f4;
 		float f7 = f2 * f4;
-		double d0 = player.getBlockReach();
+		double d0 = player.blockInteractionRange();
 		Vec3 vec31 = vec3.add((double) f6 * d0, (double) f5 * d0, (double) f7 * d0);
 		return level.clip(new ClipContext(vec3, vec31, ClipContext.Block.OUTLINE, fluid, player));
 	}

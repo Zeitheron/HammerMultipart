@@ -1,22 +1,27 @@
 package org.zeith.multipart.client.model;
 
+import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.texture.*;
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraftforge.client.model.data.ModelData;
-import org.jetbrains.annotations.*;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.zeith.multipart.api.PartEntity;
 
 import java.util.*;
 import java.util.function.Consumer;
 
+@Getter
 public class BakedPartDefinitionModel
 {
 	public final Map<ResourceLocation, TextureAtlasSprite> allParticles;
@@ -38,16 +43,6 @@ public class BakedPartDefinitionModel
 				.map(allParticles::get)
 				.filter(Objects::nonNull)
 				.toList();
-	}
-	
-	public Map<ResourceLocation, TextureAtlasSprite> getAllParticles()
-	{
-		return allParticles;
-	}
-	
-	public Map<ResourceLocation, BakedModel> getAllModels()
-	{
-		return allModels;
 	}
 	
 	public void getQuads(PartEntity part, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType, Consumer<BakedQuad> quadList)
@@ -80,7 +75,7 @@ public class BakedPartDefinitionModel
 		return v;
 	}
 	
-	public BakedModel getModel(ResourceLocation model)
+	public BakedModel getModel(ModelResourceLocation model)
 	{
 		var mod = allModels.get(model);
 		if(mod == null) return Minecraft.getInstance().getModelManager().getModel(model);

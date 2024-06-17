@@ -5,15 +5,17 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.*;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.data.loading.DatagenModLoader;
 import org.zeith.multipart.api.placement.*;
 import org.zeith.multipart.client.IClientPartDefinitionExtensions;
 import org.zeith.multipart.init.PartRegistries;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
-import java.util.function.*;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public abstract class PartDefinition
 {
@@ -94,8 +96,7 @@ public abstract class PartDefinition
 	private void initClient()
 	{
 		// Minecraft instance isn't available in datagen, so don't call initializeClient if in datagen
-		if(FMLEnvironment.dist == Dist.CLIENT &&
-				!FMLLoader.getLaunchHandler().isData())
+		if(FMLEnvironment.dist == Dist.CLIENT && !DatagenModLoader.isRunningDataGen())
 		{
 			initializeClient(properties ->
 			{

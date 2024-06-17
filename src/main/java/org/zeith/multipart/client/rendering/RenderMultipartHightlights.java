@@ -1,14 +1,16 @@
 package org.zeith.multipart.client.rendering;
 
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.*;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import org.zeith.multipart.api.*;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.RenderHighlightEvent;
+import org.zeith.multipart.api.IndexedVoxelShape;
+import org.zeith.multipart.api.WorldPartComponents;
 import org.zeith.multipart.blocks.BlockMultipartContainer;
 
-@Mod.EventBusSubscriber(Dist.CLIENT)
+@EventBusSubscriber(Dist.CLIENT)
 public class RenderMultipartHightlights
 {
 	@SubscribeEvent
@@ -27,7 +29,7 @@ public class RenderMultipartHightlights
 		mpctr.renderShape = shape.shape();
 	}
 	
-	@Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+	@EventBusSubscriber(value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 	public static class OnModBus
 	{
 		@SubscribeEvent

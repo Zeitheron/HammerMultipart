@@ -35,7 +35,7 @@ public class PartEntityChain
 	@Override
 	public List<ItemStack> getDrops(@Nullable ServerPlayer harvester, LootParams.Builder drops)
 	{
-		return Blocks.CHAIN.getDrops(Blocks.CHAIN.defaultBlockState(), drops);
+		return Blocks.CHAIN.defaultBlockState().getDrops(drops);
 	}
 	
 	@Override

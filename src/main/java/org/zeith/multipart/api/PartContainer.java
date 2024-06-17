@@ -1,27 +1,25 @@
 package org.zeith.multipart.api;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.*;
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.model.data.ModelProperty;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fml.DistExecutor;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.client.model.data.ModelProperty;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.zeith.multipart.api.placement.IConfiguredPartPlacer;
 import org.zeith.multipart.api.placement.PartPlacement;
-import org.zeith.multipart.blocks.BlockMultipartContainer;
 import org.zeith.multipart.client.IClientPartDefinitionExtensions;
 import org.zeith.multipart.init.PartRegistries;
 
@@ -31,6 +29,8 @@ import java.util.*;
 public class PartContainer
 {
 	public static final Logger LOG = LogManager.getLogger(PartContainer.class);
+	public static final ModelProperty<BlockAndTintGetter> CONTAINER_LEVEL = new ModelProperty<>();
+	public static final ModelProperty<BlockPos> CONTAINER_POS = new ModelProperty<>();
 	public static final ModelProperty<PartContainer> CONTAINER_PROP = new ModelProperty<>();
 	public static final ModelProperty<Long> PART_HASH = new ModelProperty<>();
 	protected final LinkedHashMap<PartPlacement, PartEntity> parts = new LinkedHashMap<>();
@@ -49,14 +49,12 @@ public class PartContainer
 	
 	public int lightLevel;
 	
-	@Deprecated(forRemoval = true)
-	public boolean needsSync;
-	
 	public boolean causeBlockUpdate;
 	public boolean causeRedstoneUpdate;
 	public boolean waterlogged;
 	
 	public final IPartContainerTile owner;
+	public boolean needsSync;
 	
 	public PartContainer(BlockPos pos, IPartContainerTile owner)
 	{
@@ -163,12 +161,12 @@ public class PartContainer
 		lastRecalcHash = hash;
 	}
 	
-	public @NotNull <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side)
+	public @NotNull <T, C> Optional<T> getCapability(@NotNull BlockCapability<T, C> cap, @Nullable C side)
 	{
 		return parts().stream().map(pe -> pe.getCapability(cap, side))
-				.filter(LazyOptional::isPresent)
+				.filter(Optional::isPresent)
 				.findFirst()
-				.orElseGet(LazyOptional::empty);
+				.orElseGet(Optional::empty);
 	}
 	
 	public void refreshTicking()
@@ -179,17 +177,20 @@ public class PartContainer
 				ticking.add(tpe);
 	}
 	
+	private void applyRender(PartPlacement placement, PartEntity part)
+	{
+		var renderer = IClientPartDefinitionExtensions.of(part).createRenderer(part);
+		if(renderer != null)
+			renderers.put(placement, renderer);
+	}
+	
 	public void setPartAt(PartPlacement placement, PartEntity part, boolean shouldUpdate)
 	{
 		parts.put(placement, part);
 		refreshTicking();
 		
-		DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-		{
-			var renderer = IClientPartDefinitionExtensions.of(part).createRenderer(part);
-			if(renderer != null)
-				renderers.put(placement, renderer);
-		});
+		if(FMLEnvironment.dist == Dist.CLIENT)
+			applyRender(placement, part);
 		
 		if(shouldUpdate)
 		{
@@ -218,11 +219,6 @@ public class PartContainer
 			part.tickServer();
 			if(part.isShapeDirty())
 				updateShape = true;
-			if(part.syncDirty())
-			{
-				markForSync();
-				part.markSynced();
-			}
 		}
 		
 		if(removePendingParts()) updateShape = true;
@@ -374,7 +370,7 @@ public class PartContainer
 		markForSync();
 	}
 	
-	public CompoundTag serializeNBT()
+	public CompoundTag serializeNBT(HolderLookup.Provider provider)
 	{
 		var tag = new CompoundTag();
 		
@@ -384,7 +380,7 @@ public class PartContainer
 			var element = new CompoundTag();
 			element.putString("Pos", PartRegistries.partPlacements().getKey(e.placement()).toString());
 			element.putString("Def", PartRegistries.partDefinitions().getKey(e.definition()).toString());
-			element.put("Data", e.serialize());
+			element.put("Data", e.serialize(provider));
 			element.putIntArray("Tint", e.tintIndices);
 			parts.add(element);
 		}
@@ -398,7 +394,7 @@ public class PartContainer
 	
 	protected long prevNetworkHash;
 	
-	public void deserializeNBT(CompoundTag tag)
+	public void deserializeNBT(HolderLookup.Provider provider, CompoundTag tag)
 	{
 		this.parts.clear();
 		
@@ -417,8 +413,8 @@ public class PartContainer
 			var pos = ResourceLocation.tryParse(element.getString("Pos"));
 			var def = ResourceLocation.tryParse(element.getString("Def"));
 			if(pos == null || def == null) continue;
-			var placement = PartRegistries.partPlacements().getValue(pos);
-			var definition = PartRegistries.partDefinitions().getValue(def);
+			var placement = PartRegistries.partPlacements().get(pos);
+			var definition = PartRegistries.partDefinitions().get(def);
 			if(placement == null || definition == null)
 			{
 				LOG.warn("Unable to deserialize part with definition {}({}) in {}({}) (at {}): {} unknown", definition, def, placement, pos, pos(),
@@ -432,7 +428,7 @@ public class PartContainer
 				LOG.warn("Unable to create part with definition {}", def);
 				continue;
 			}
-			part.deserialize(element.getCompound("Data"));
+			part.deserialize(provider, element.getCompound("Data"));
 			setPartAt(placement, part, false);
 			
 			int[] tints = element.getIntArray("Tint");

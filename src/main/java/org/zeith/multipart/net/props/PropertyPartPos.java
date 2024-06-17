@@ -1,9 +1,10 @@
 package org.zeith.multipart.net.props;
 
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.zeith.hammerlib.net.properties.PropertyBase;
 import org.zeith.hammerlib.util.java.DirectStorage;
-import org.zeith.multipart.api.placement.*;
+import org.zeith.multipart.api.placement.PartPlacement;
+import org.zeith.multipart.api.placement.PartPos;
 import org.zeith.multipart.init.PartRegistries;
 
 public class PropertyPartPos
@@ -20,7 +21,7 @@ public class PropertyPartPos
 	}
 	
 	@Override
-	public void write(FriendlyByteBuf buf)
+	public void write(RegistryFriendlyByteBuf buf)
 	{
 		var val = get();
 		buf.writeBoolean(val != null);
@@ -41,7 +42,7 @@ public class PropertyPartPos
 	}
 	
 	@Override
-	public void read(FriendlyByteBuf buf)
+	public void read(RegistryFriendlyByteBuf buf)
 	{
 		if(!buf.readBoolean())
 		{
@@ -53,7 +54,7 @@ public class PropertyPartPos
 		PartPlacement pl = null;
 		
 		if(buf.readBoolean())
-			pl = PartRegistries.partPlacements().getValue(buf.readResourceLocation());
+			pl = PartRegistries.partPlacements().get(buf.readResourceLocation());
 		
 		set(new PartPos(pos, pl));
 	}

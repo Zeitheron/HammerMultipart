@@ -1,13 +1,18 @@
 package org.zeith.multipart.api;
 
+import lombok.Getter;
+import lombok.Setter;
+import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.*;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.*;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
@@ -17,32 +22,37 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.minecraft.world.phys.*;
-import net.minecraft.world.phys.shapes.*;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.capabilities.CapabilityProvider;
-import net.minecraftforge.fml.DistExecutor;
-import org.jetbrains.annotations.*;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Range;
 import org.zeith.hammerlib.api.io.NBTSerializationHelper;
 import org.zeith.hammerlib.util.java.tuples.Tuple2;
-import org.zeith.multipart.api.placement.*;
+import org.zeith.multipart.api.placement.PartPlacement;
+import org.zeith.multipart.api.placement.PartPos;
 import org.zeith.multipart.client.MultipartEffects;
 
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Function;
 
-@SuppressWarnings("UnstableApiUsage")
 public abstract class PartEntity
-		extends CapabilityProvider<PartEntity>
 		implements IPartEntity
 {
 	protected final PartDefinition definition;
 	protected final PartContainer container;
 	protected final PartPlacement placement;
 	protected final PartPos position;
+	@Getter
 	protected final int[] tintIndices;
 	
+	@Setter
+	@Getter
 	private boolean addedToWorld;
 	
 	@Deprecated(forRemoval = true)
@@ -53,7 +63,6 @@ public abstract class PartEntity
 	
 	public PartEntity(PartDefinition definition, PartContainer container, PartPlacement placement)
 	{
-		super(PartEntity.class);
 		this.tintIndices = new int[definition.getTintIndexCount()];
 		this.container = container;
 		this.definition = definition;
@@ -70,11 +79,6 @@ public abstract class PartEntity
 	public Collection<ResourceLocation> getParticleIcons(Set<ResourceLocation> allowed)
 	{
 		return allowed;
-	}
-	
-	public int[] getTintIndices()
-	{
-		return tintIndices;
 	}
 	
 	/**
@@ -133,7 +137,6 @@ public abstract class PartEntity
 	
 	public void onRemoved(Player harvester, boolean spawnDrops, boolean playSound, boolean spawnParticles)
 	{
-		invalidateCaps();
 		onRemove();
 		
 		if(playSound)
@@ -146,10 +149,8 @@ public abstract class PartEntity
 		
 		if(spawnParticles)
 		{
-			DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-			{
+			if(FMLEnvironment.dist == Dist.CLIENT)
 				MultipartEffects.spawnBreakFX(this);
-			});
 		}
 		
 		if(spawnDrops && container.level instanceof ServerLevel sl)
@@ -190,14 +191,14 @@ public abstract class PartEntity
 		return 0;
 	}
 	
-	public CompoundTag serialize()
+	public CompoundTag serialize(HolderLookup.Provider provider)
 	{
-		return NBTSerializationHelper.serialize(this);
+		return NBTSerializationHelper.serialize(provider, this);
 	}
 	
-	public void deserialize(CompoundTag tag)
+	public void deserialize(HolderLookup.Provider provider, CompoundTag tag)
 	{
-		NBTSerializationHelper.deserialize(this, tag);
+		NBTSerializationHelper.deserialize(provider, this, tag);
 	}
 	
 	public final PartDefinition definition()
@@ -261,25 +262,18 @@ public abstract class PartEntity
 		return getPartOccupiedShape();
 	}
 	
-	public InteractionResult use(Player player, InteractionHand hand, BlockHitResult hit, IndexedVoxelShape selection)
+	public InteractionResult useWithoutItem(Player player, BlockHitResult hit, IndexedVoxelShape selection)
 	{
 		return InteractionResult.PASS;
 	}
 	
+	public ItemInteractionResult useItemOn(Player player, InteractionHand hand, BlockHitResult hit, IndexedVoxelShape selection)
+	{
+		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+	}
+	
 	public void attack(Player player, BlockHitResult hit, IndexedVoxelShape selection)
 	{
-	}
-	
-	@Override
-	public boolean syncDirty()
-	{
-		return syncDirty;
-	}
-	
-	@Override
-	public void markSynced()
-	{
-		syncDirty = false;
 	}
 	
 	public void markForSync()
@@ -319,7 +313,7 @@ public abstract class PartEntity
 		return getRenderState();
 	}
 	
-	public List<ResourceLocation> getRenderModels()
+	public List<ModelResourceLocation> getRenderModels()
 	{
 		return List.of();
 	}
@@ -418,13 +412,24 @@ public abstract class PartEntity
 		return false;
 	}
 	
-	public final boolean isAddedToWorld()
+	/**
+	 * Retrieve a capability with a given context from this part entity.
+	 * It is recommended to use {@link #applyCapability(BlockCapability, Object, BlockCapability, Function)} to do safe typecasting.
+	 * <p>
+	 * Example:
+	 * <pre>return applyCapability(capability, context, Capabilities.EnergyStorage.BLOCK, (d) -> (IEnergyStorage) this)
+	 * 	.or(() -> applyCapability(capability, context, Capabilities.FluidHandler.BLOCK, (d) -> (IFluidHandler) this));</pre>
+	 */
+	public <T, C> Optional<T> getCapability(BlockCapability<T, C> capability, C context)
 	{
-		return addedToWorld;
+		return Optional.empty();
 	}
 	
-	public void setAddedToWorld(boolean addedToWorld)
+	public static <EXT_T, EXT_C, T, C> Optional<EXT_T> applyCapability(
+			BlockCapability<EXT_T, EXT_C> cap, EXT_C ctx,
+			BlockCapability<T, C> expected, Function<C, T> provider
+	)
 	{
-		this.addedToWorld = addedToWorld;
+		return cap != expected ? Optional.empty() : Optional.ofNullable((EXT_T) provider.apply((C) ctx));
 	}
 }

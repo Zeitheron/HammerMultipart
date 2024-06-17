@@ -4,7 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.*;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,7 +19,6 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
-import org.zeith.hammerlib.HammerLib;
 import org.zeith.hammerlib.abstractions.actions.impl.MethodHandleLevelAction;
 import org.zeith.hammerlib.annotations.ExposedToLevelAction;
 import org.zeith.hammerlib.api.io.NBTSerializable;
@@ -64,7 +64,7 @@ public class PartEntityRedstoneTorch
 	@Override
 	public List<ItemStack> getDrops(@Nullable ServerPlayer harvester, LootParams.Builder drops)
 	{
-		return Blocks.REDSTONE_TORCH.getDrops(Blocks.REDSTONE_TORCH.defaultBlockState(), drops);
+		return Blocks.REDSTONE_TORCH.defaultBlockState().getDrops(drops);
 	}
 	
 	@Override

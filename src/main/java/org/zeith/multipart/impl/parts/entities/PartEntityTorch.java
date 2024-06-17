@@ -1,8 +1,11 @@
 package org.zeith.multipart.impl.parts.entities;
 
-import com.google.common.collect.*;
-import net.minecraft.core.*;
-import net.minecraft.core.particles.*;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
@@ -10,9 +13,11 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.phys.shapes.*;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
-import org.zeith.hammerlib.util.java.tuples.*;
+import org.zeith.hammerlib.util.java.tuples.Tuple2;
+import org.zeith.hammerlib.util.java.tuples.Tuples;
 import org.zeith.multipart.api.*;
 import org.zeith.multipart.api.placement.PartPlacement;
 import org.zeith.multipart.init.PartPlacementsHM;
@@ -42,7 +47,7 @@ public class PartEntityTorch
 	@Override
 	public List<ItemStack> getDrops(@Nullable ServerPlayer harvester, LootParams.Builder drops)
 	{
-		return Blocks.TORCH.getDrops(Blocks.TORCH.defaultBlockState(), drops);
+		return Blocks.TORCH.defaultBlockState().getDrops(drops);
 	}
 	
 	@Override

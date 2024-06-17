@@ -4,20 +4,25 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.model.geometry.IGeometryBakingContext;
-import net.minecraftforge.fml.loading.*;
-import org.apache.logging.log4j.*;
-import org.zeith.multipart.client.model.*;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.client.model.geometry.IGeometryBakingContext;
+import net.neoforged.neoforge.data.loading.DatagenModLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.zeith.hammerlib.util.mcf.Resources;
+import org.zeith.multipart.client.model.BakedPartDefinitionModel;
+import org.zeith.multipart.client.model.IPartModelBaker;
 import org.zeith.multipart.init.PartRegistries;
 
 import java.util.*;
-import java.util.function.*;
-import java.util.stream.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class PartDefinitionModel
 {
-	public static final Logger LOG = LogManager.getLogger(PartDefinitionModel.class);
+	public static final Logger LOG = LoggerFactory.getLogger(PartDefinitionModel.class);
 	protected final List<ResourceLocation> extraIcons = new ArrayList<>();
 	protected final List<ResourceLocation> partModels = new ArrayList<>();
 	
@@ -27,6 +32,16 @@ public class PartDefinitionModel
 	{
 		this.definition = definition;
 		initClient();
+	}
+	
+	public PartDefinitionModel addParticleIcon(String path)
+	{
+		return addParticleIcon(Resources.location(path));
+	}
+	
+	public PartDefinitionModel addParticleIcon(String namespace, String path)
+	{
+		return addParticleIcon(Resources.location(namespace, path));
 	}
 	
 	public PartDefinitionModel addParticleIcon(ResourceLocation icon)
@@ -68,7 +83,7 @@ public class PartDefinitionModel
 	{
 		// Minecraft instance isn't available in datagen, so don't call initializeClient if in datagen
 		if(FMLEnvironment.dist == Dist.CLIENT &&
-				!FMLLoader.getLaunchHandler().isData())
+		   !DatagenModLoader.isRunningDataGen())
 		{
 			initializeClient(properties ->
 			{
