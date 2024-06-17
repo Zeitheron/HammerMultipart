@@ -106,8 +106,8 @@ public class PacketSendLandingEffect
 			if(ctr == null) return;
 			for(PartEntity part : ctr.parts())
 			{
-				var shape = Shapes.join(part.getShape().move(pos.getX(), pos.getY(), pos.getZ()),
-						Shapes.create(entityAABB.inflate(0.1)),
+				var shape = Shapes.join(part.getCollisionShape().move(pos.getX(), pos.getY(), pos.getZ()),
+						Shapes.create(entityAABB.inflate(0.01)),
 						BooleanOp.AND
 				);
 				if(shape.isEmpty()) continue;

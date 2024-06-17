@@ -11,6 +11,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -33,10 +34,8 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import org.jetbrains.annotations.Nullable;
 import org.zeith.hammerlib.HammerLib;
-import org.zeith.hammerlib.annotations.RegistryName;
 import org.zeith.hammerlib.api.blocks.INoItemBlock;
 import org.zeith.hammerlib.api.forge.BlockAPI;
-import org.zeith.hammerlib.api.registrars.Registrar;
 import org.zeith.hammerlib.net.Network;
 import org.zeith.hammerlib.net.packets.PacketRequestTileSync;
 import org.zeith.hammerlib.util.SidedLocal;
@@ -241,13 +240,7 @@ public class BlockMultipartContainer
 	@Override
 	public SoundType getSoundType(BlockState state, LevelReader level, BlockPos pos, @Nullable Entity entity)
 	{
-		var pc = pc(level, pos);
-		if(pc == null || !(entity instanceof Player player)) return SoundType.EMPTY;
-		var hit = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
-		if(hit.getType() != HitResult.Type.BLOCK) return SoundType.EMPTY;
-		var pe = pc.selectPart(hit.getLocation()).orElse(null);
-		if(pe == null) return SoundType.EMPTY;
-		return pe.getValue().definition().getSoundType(pe.getValue());
+		return MultipartContainerSoundType.create(level, pos, entity);
 	}
 	
 	@Override
@@ -563,7 +556,8 @@ public class BlockMultipartContainer
 	@Override
 	protected void spawnDestroyParticles(Level level, Player player, BlockPos pos, BlockState state)
 	{
-		specifics: if(player != null)
+		specifics:
+		if(player != null)
 		{
 			var hit = getPlayerPOVHitResult(level, player, ClipContext.Fluid.NONE);
 			var pc = pc(level, hit.getBlockPos());
@@ -739,6 +733,25 @@ public class BlockMultipartContainer
 		float f6 = f3 * f4;
 		float f7 = f2 * f4;
 		double d0 = player.blockInteractionRange();
+		Vec3 vec31 = vec3.add((double) f6 * d0, (double) f5 * d0, (double) f7 * d0);
+		return level.clip(new ClipContext(vec3, vec31, ClipContext.Block.OUTLINE, fluid, player));
+	}
+	
+	public static BlockHitResult getEntityPOVHitResult(BlockGetter level, LivingEntity player, ClipContext.Fluid fluid)
+	{
+		float f = player.getXRot();
+		float f1 = player.getYRot();
+		Vec3 vec3 = player.getEyePosition();
+		float f2 = Mth.cos(-f1 * ((float) Math.PI / 180F) - (float) Math.PI);
+		float f3 = Mth.sin(-f1 * ((float) Math.PI / 180F) - (float) Math.PI);
+		float f4 = -Mth.cos(-f * ((float) Math.PI / 180F));
+		float f5 = Mth.sin(-f * ((float) Math.PI / 180F));
+		float f6 = f3 * f4;
+		float f7 = f2 * f4;
+		
+		var attr = player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE);
+		double d0 = attr != null ? attr.getValue() : Attributes.BLOCK_INTERACTION_RANGE.value().getDefaultValue();
+		
 		Vec3 vec31 = vec3.add((double) f6 * d0, (double) f5 * d0, (double) f7 * d0);
 		return level.clip(new ClipContext(vec3, vec31, ClipContext.Block.OUTLINE, fluid, player));
 	}

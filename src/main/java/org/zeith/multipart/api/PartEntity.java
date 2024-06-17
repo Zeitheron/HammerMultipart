@@ -17,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -204,6 +205,11 @@ public abstract class PartEntity
 	public final PartDefinition definition()
 	{
 		return definition;
+	}
+	
+	public SoundType getSoundType()
+	{
+		return definition.getSoundType(this);
 	}
 	
 	public final PartContainer container()
